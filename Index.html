@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TBD</title>
+<style>
+:root {
+  --navy: #050b1a;
+  --white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+  color: var(--white);
+}
+
+body {
+  margin: 0;
+  background: var(--navy);
+  overflow: hidden;
+}
+
+/* ===================== SPACE CANVAS ===================== */
+canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+/* ===================== UI ===================== */
+#ui {
+  position: relative;
+  z-index: 2;
+  padding: 20px;
+  max-width: 900px;
+  margin: auto;
+}
+
+/* Header */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+header h1 {
+  margin: 0 auto;
+  text-align: center;
+  flex: 1;
+}
+
+header button {
+  position: absolute;
+  right: 20px;
+  background: transparent;
+  border: 1px solid white;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* Inputs */
+label {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  width: 100%;
+  background: transparent;
+  border: 1px solid white;
+  padding: 10px;
+  resize: vertical;
+  color: var(--white);
+}
+
+/* Ratings */
+.rating-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.rating-emojis span {
+  font-size: 26px;
+  cursor: pointer;
+  opacity: 0.4;
+  margin-left: 6px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.rating-emojis span.selected {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+/* Submit */
+#submit {
+  margin-top: 25px;
+  background: transparent;
+  border: 1px solid white;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+/* Admin dashboard */
+#reviews {
+  display: none;
+  margin-top: 40px;
+  border-top: 1px solid white;
+  padding-top: 20px;
+}
+
+.review-card {
+  border: 1px solid white;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="space"></canvas>
+
+<div id="ui">
+  <header>
+    <h1>TBD</h1>
+    <button id="loginBtn">Admin Login</button>
+  </header>
+
+  <!-- Login form (shown when not logged in) -->
+  <div id="loginForm" style="display:none; margin-bottom:20px;">
+    <label>Email</label>
+    <input type="email" id="loginEmail">
+    <label>Password</label>
+    <input type="password" id="loginPassword">
+    <button id="loginSubmit">Login</button>
+    <button id="loginCancel">Cancel</button>
+  </div>
+
+  <label>Name of Program</label>
+  <input type="text" id="programName">
+
+  <div class="rating-row">
+    <div>Design</div>
+    <div class="rating-emojis" data-key="design"></div>
+  </div>
+
+  <div class="rating-row">
+    <div>Functionality</div>
+    <div class="rating-emojis" data-key="functionality"></div>
+  </div>
+
+  <div class="rating-row">
+    <div>Character response</div>
+    <div class="rating-emojis" data-key="character"></div>
+  </div>
+
+  <div class="rating-row">
+    <div>Overall feel</div>
+    <div class="rating-emojis" data-key="overall"></div>
+  </div>
+
+  <label>Comment (optional)</label>
+  <textarea rows="4" id="comment"></textarea>
+
+  <button id="submit">Submit Review</button>
+
+  <div id="reviews">
+    <h2>Submitted Reviews</h2>
+    <div id="reviewList"></div>
+  </div>
+</div>
+
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.32.0/dist/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://zffpknphjwrzaceglhal.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_QrIeGKE7DCSz4sKRYRcJBA__9exQtew";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ===================== Rating setup ===================== */
+const emojis = ["😐","🤔","😊","😍","🤩"];
+const ratings = {};
+
+document.querySelectorAll(".rating-emojis").forEach(container => {
+  emojis.forEach((e,i)=>{
+    const span = document.createElement("span");
+    span.textContent = e;
+    span.onclick = () => {
+      ratings[container.dataset.key] = i+1;
+      [...container.children].forEach(s=>s.classList.remove("selected"));
+      span.classList.add("selected");
+    };
+    container.appendChild(span);
+  });
+});
+
+/* ===================== Admin login ===================== */
+let isAdmin = false;
+
+const loginBtn = document.getElementById("loginBtn");
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const loginSubmit = document.getElementById("loginSubmit");
+const loginCancel = document.getElementById("loginCancel");
+
+loginBtn.onclick = () => {
+  loginForm.style.display = "block";
+};
+
+loginCancel.onclick = () => {
+  loginForm.style.display = "none";
+};
+
+/* Login using Supabase email/password */
+loginSubmit.onclick = async () => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: loginEmail.value,
+    password: loginPassword.value
+  });
+  if (error) {
+    alert("Login failed: "+error.message);
+    return;
+  }
+  isAdmin = true;
+  loginForm.style.display = "none";
+  loginBtn.style.display = "none";
+  document.getElementById("reviews").style.display = "block";
+  fetchReviews();
+};
+
+/* ===================== Submit review ===================== */
+const submitBtn = document.getElementById("submit");
+
+submitBtn.onclick = async () => {
+  const program = document.getElementById("programName").value.trim();
+  if(!program) { alert("Program name required"); return; }
+
+  // Check all ratings
+  const keys = ["design","functionality","character","overall"];
+  for (let k of keys) {
+    if (!ratings[k]) { alert("All rating categories are required"); return; }
+  }
+
+  const comment = document.getElementById("comment").value.trim();
+
+  const { data, error } = await supabase.from("reviews").insert([{
+    program_name: program,
+    ratings: ratings,
+    comment: comment || null
+  }]);
+
+  if(error) { alert("Error submitting review: "+error.message); return; }
+
+  alert("Review submitted!");
+  document.getElementById("programName").value = "";
+  document.getElementById("comment").value = "";
+  Object.keys(ratings).forEach(k=>{
+    ratings[k] = 0;
+    document.querySelector(`.rating-emojis[data-key=${k}]`).querySelectorAll("span").forEach(s=>s.classList.remove("selected"));
+  });
+
+  if(isAdmin) fetchReviews();
+};
+
+/* ===================== Fetch reviews for admin ===================== */
+async function fetchReviews() {
+  const { data, error } = await supabase.from("reviews").select("*").order("created_at",{ascending:false});
+  if(error) { console.log(error); return; }
+
+  const reviewList = document.getElementById("reviewList");
+  reviewList.innerHTML = "";
+  data.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "review-card";
+    div.innerHTML = `
+      <strong>${r.program_name}</strong><br>
+      Design: ${emojis[r.ratings.design-1]} 
+      Functionality: ${emojis[r.ratings.functionality-1]} 
+      Character: ${emojis[r.ratings.character-1]} 
+      Overall: ${emojis[r.ratings.overall-1]}<br>
+      Comment: ${r.comment || "None"}<br>
+      Submitted: ${new Date(r.created_at).toLocaleString()}
+    `;
+    reviewList.appendChild(div);
+  });
+}
+
+/* ===================== Space background ===================== */
+const canvas = document.getElementById("space");
+const ctx = canvas.getContext("2d");
+resize();
+window.onresize = resize;
+
+function resize() {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+
+const stars = Array.from({length:200}, ()=>({
+  x: Math.random()*canvas.width,
+  y: Math.random()*canvas.height,
+  r: Math.random()*1.5+0.5,
+  b: Math.random(),
+}));
+
+const planets = Array.from({length:6}, ()=>({
+  x: Math.random()*canvas.width,
+  y: Math.random()*canvas.height,
+  r: Math.random()*15+10,
+  a: Math.random()*Math.PI*2,
+}));
+
+const blackHole = { x: canvas.width/2, y: canvas.height/2, r:25 };
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  stars.forEach(s=>{
+    s.b += (Math.random()-0.5)*0.05;
+    s.b = Math.max(0.2, Math.min(1,s.b));
+    ctx.fillStyle = `rgba(255,255,255,${s.b})`;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fill();
+
+    const dx = blackHole.x - s.x;
+    const dy = blackHole.y - s.y;
+    const d = Math.hypot(dx,dy);
+    if(d<120) {
+      s.x += dx/d*0.8;
+      s.y += dy/d*0.8;
+      s.r *= 0.99;
+      if(s.r<0.2) {
+        s.x = Math.random()*canvas.width;
+        s.y = Math.random()*canvas.height;
+        s.r = Math.random()*1.5+0.5;
+      }
+    }
+  });
+
+  planets.forEach(p=>{
+    p.a += 0.01;
+    ctx.save();
+    ctx.translate(p.x,p.y);
+    ctx.rotate(p.a);
+    ctx.fillStyle = "#888";
+    ctx.beginPath();
+    ctx.arc(0,0,p.r,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  blackHole.x += Math.sin(Date.now()*0.0001)*0.2;
+  blackHole.y += Math.cos(Date.now()*0.0001)*0.2;
+  ctx.strokeStyle = "rgba(0,0,0,0.8)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(blackHole.x,blackHole.y,blackHole.r,0,Math.PI*2);
+  ctx.stroke();
+
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>
