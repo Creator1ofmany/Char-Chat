@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Character Chat</title>
+  <style>
+    :root {
+      --bg-base: #21253B;
+      --star-color: #ffffff;
+      --title-color: #FFFFFF;
+      --input-border: rgba(255,255,255,1);
+      --input-bg: rgba(255,255,255,0.3);
+      --send-bg: rgba(255,255,255,0.4);
+      --send-arrow: #1e3a8a;
+      --tab-border: #000;
+      --font-color: #FFFFFF;
+      --navy-input: #21253B;
+      --menu-tab: rgba(200,70,68,0.6);
+      --char-tab: rgba(211,130,74,0.6);
+      --memory-tab: rgba(228,223,97,0.6);
+      --rel-tab: rgba(109,164,99,0.6);
+      --style-tab: rgba(98,159,203,0.6);
+      --export-tab: rgba(130,74,147,0.6);
+      --import-tab: rgba(74,117,168,0.6);
+      --reset-tab: rgba(220,126,186,0.6);
+      --window-char: rgba(211,130,74,0.6);
+      --window-memory: rgba(228,223,97,0.6);
+      --window-scenario: rgba(109,164,99,0.6);
+      --window-style: rgba(98,159,203,0.6);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+    body { overflow: hidden; background: var(--bg-base); color: var(--font-color); }
+    #app {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto 1fr;
+      grid-template-areas: "header sidebar" "main sidebar";
+      height: 100vh;
+    }
+    #app { position: relative; z-index: 1; background: transparent; }
+    .main-header { grid-area: header; padding: 0.75rem 1rem; text-align: left; }
+    .title { margin: 0; font-size: 1.25rem; font-weight: 600; color: var(--title-color); }
+    .chat-area, .main-header { background: transparent; }
+    .chat-area { grid-area: main; display: flex; flex-direction: column; min-height: 0; padding: 0 1rem 1rem; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 0.5rem 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .message { display: flex; align-items: flex-start; gap: 0.5rem; max-width: 85%; align-self: flex-start; }
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+    .message-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .message-bubble { padding: 0.5rem 0.75rem; border-radius: 1rem; background: rgba(255,255,255,0.12); color: var(--font-color); word-break: break-word; }
+    .message.user .message-bubble { background: rgba(255,255,255,0.2); }
+    .message-sender { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.2rem; }
+    .message-meta { font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem; }
+    .message-action { font-style: italic; opacity: 0.9; }
+    .message-edit-btn { margin-top: 0.25rem; font-size: 0.75rem; padding: 0.2rem 0.4rem; background: rgba(255,255,255,0.2); border: none; border-radius: 4px; color: inherit; cursor: pointer; }
+    .message-edit-wrap { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem; }
+    .message-edit-input { background: var(--navy-input); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; padding: 0.35rem; font-size: 0.9rem; resize: vertical; min-height: 48px; }
+    .input-row { flex-shrink: 0; padding-top: 0.5rem; }
+    .input-wrapper { display: flex; align-items: stretch; max-width: 600px; height: 44px; border: 1px solid var(--input-border); border-radius: 22px; background: var(--input-bg); overflow: hidden; }
+    .chat-input { flex: 1; border: none; background: transparent; padding: 0 1rem; font-size: 1rem; color: var(--font-color); outline: none; }
+    .chat-input::placeholder { color: rgba(255,255,255,0.6); }
+    .send-btn { width: 52px; border: none; border-radius: 0 22px 22px 0; background: var(--send-bg); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .send-arrow { width: 20px; height: 20px; color: var(--send-arrow); filter: drop-shadow(0 0 4px rgba(30,58,138,0.6)); animation: arrow-pulse 1.5s ease-in-out infinite; }
+    @keyframes arrow-pulse { 0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(30,58,138,0.6)); } 50% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(30,58,138,0.8)); } }
+    .sidebar { grid-area: sidebar; display: flex; flex-direction: column; align-items: stretch; width: 56px; background: transparent; padding: 0.5rem 0; gap: 2px; }
+    .tab { writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg); height: 80px; min-width: 56px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--tab-border); border-left: none; border-radius: 0 12px 12px 0; cursor: pointer; font-size: 0.7rem; font-weight: 600; color: #FFFFFF; padding: 0.5rem; word-break: break-word; }
+    .tab.menu-tab { background: var(--menu-tab); }
+    .tab.characters-tab { background: var(--char-tab); }
+    .tab.memory-tab { background: var(--memory-tab); }
+    .tab.relationships-tab { background: var(--rel-tab); }
+    .tab.style-tab { background: var(--style-tab); }
+    .tab.export-tab { background: var(--export-tab); }
+    .tab.import-tab { background: var(--import-tab); }
+    .tab.reset-tab { background: var(--reset-tab); }
+    .stars-layer { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .stars-distant { position: absolute; inset: 0; width: 1px; height: 1px; overflow: visible; opacity: 0.55; }
+    .star { position: absolute; background: var(--star-color); border-radius: 50%; box-shadow: 0 0 6px currentColor; animation: twinkle 3s ease-in-out infinite; }
+    .star.size-1 { width: 1px; height: 1px; box-shadow: 0 0 3px currentColor; }
+    .star.size-2 { width: 2px; height: 2px; }
+    .star.size-3 { width: 3px; height: 3px; box-shadow: 0 0 8px currentColor; }
+    .star.dim { opacity: 0.35; animation-duration: 4.5s; }
+    .star.bright { opacity: 1; animation-duration: 2s; }
+    @keyframes twinkle { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .star { animation: none; opacity: 0.85; }
+      .shooting-star { animation: none; opacity: 0; }
+    }
+    .shooting-star { position: absolute; height: 2px; background: linear-gradient(90deg, var(--star-color), transparent); border-radius: 2px; animation: shoot 3s linear infinite; opacity: 0; }
+    @keyframes shoot { 0% { left: -80px; opacity: 0; } 8% { opacity: 0.9; } 20% { left: 110vw; opacity: 0; } 100% { opacity: 0; } }
+    .panel, .window { position: fixed; z-index: 100; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; transition: opacity 0.2s, transform 0.2s; }
+    .panel[aria-hidden="true"], .window[aria-hidden="true"] { opacity: 0; pointer-events: none; transform: translateX(20px); }
+    .panel { top: 60px; right: 70px; width: 280px; padding: 1rem; background: var(--menu-tab); }
+    .window { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(70vw, 560px); padding: 1rem 1.25rem; }
+    .window[aria-hidden="true"] { transform: translate(-50%, -50%) scale(0.98); opacity: 0; }
+    .window-close, .panel-close { position: absolute; top: 0.5rem; left: 0.5rem; width: 28px; height: 28px; border: none; background: rgba(0,0,0,0.2); color: inherit; font-size: 1.25rem; line-height: 1; border-radius: 6px; cursor: pointer; }
+    .window-title { margin: 0 0 0.75rem 0; font-size: 1.1rem; padding-left: 32px; }
+    .window-body { display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; max-height: 70vh; }
+    .window-body label { font-size: 0.85rem; }
+    .characters-window { background: var(--window-char); }
+    .memory-window { background: var(--window-memory); }
+    .scenario-window { background: var(--window-scenario); }
+    .style-window { background: var(--window-style); }
+    .char-dropdown, .char-textarea, .memory-textarea, .scenario-textarea, .scenario-datetime { background: var(--navy-input); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.5rem; font-size: 0.95rem; }
+    .char-textarea, .memory-textarea, .scenario-textarea { resize: vertical; min-height: 120px; }
+    .char-dropdown:disabled { opacity: 0.6; cursor: not-allowed; }
+    .profile-area { margin-top: 0.5rem; padding: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 8px; white-space: pre-wrap; font-size: 0.9rem; max-height: 200px; overflow-y: auto; }
+    .btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.2); color: inherit; cursor: pointer; font-size: 0.9rem; }
+    .btn-generate { background: rgba(109,164,99,0.5); }
+    .btn-save { background: rgba(74,117,168,0.5); }
+    .btn-danger { background: rgba(200,70,68,0.7); }
+    .btn-edit-mode.toggled { background: rgba(228,223,97,0.6); }
+    .theme-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.2); }
+    .theme-name { min-width: 120px; font-weight: 600; }
+    .theme-option { display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; }
+    .theme-option input { margin: 0; }
+    .modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .modal[aria-hidden="false"] { opacity: 1; pointer-events: auto; }
+    .modal-content { background: var(--navy-input); padding: 1.5rem; border-radius: 12px; max-width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+    .typing-dots { display: inline-flex; gap: 4px; padding: 0.5rem 0.75rem; }
+    .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.6; animation: typing-bounce 1.4s ease-in-out infinite both; }
+    .typing-dots span:nth-child(1) { animation-delay: 0s; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing-bounce { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; } 40% { transform: scale(1.2); opacity: 1; } }
+    .message.thinking .message-bubble { min-height: 2.5rem; }
+    .message .bubble-quirk { display: inline-block; margin-left: 0.25rem; animation: quirk-idle 2s ease-in-out infinite; }
+    @keyframes quirk-idle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.85; transform: scale(1.02); } }
+    .message .bubble-quirk.wiggle { animation: quirk-wiggle 1.5s ease-in-out infinite; }
+    @keyframes quirk-wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-2deg); } 75% { transform: rotate(2deg); } }
+    .conflict-modal .modal-content { max-width: 420px; }
+    .window-title-row { display: flex; align-items: center; gap: 0.5rem; }
+    .info-btn { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); color: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 1; padding: 0; }
+    .info-btn:hover { background: rgba(255,255,255,0.25); }
+    .char-profile-info-modal .modal-content { max-width: 440px; }
+    .conflict-list { max-height: 120px; overflow-y: auto; margin: 0.5rem 0; font-size: 0.9rem; }
+    .conflict-item { padding: 0.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.15); }
+    #debug-panel { position: fixed; bottom: 0; left: 0; right: 280px; max-height: 220px; background: rgba(33,37,59,0.98); border-top: 1px solid rgba(255,255,255,0.2); z-index: 150; padding: 0.75rem 1rem; overflow-y: auto; font-size: 0.8rem; transform: translateY(100%); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    #debug-panel.visible { transform: translateY(0); }
+    #debug-panel h4 { margin: 0 0 0.5rem 0; font-size: 0.9rem; }
+    #debug-panel .debug-section { margin-bottom: 0.5rem; }
+    #debug-panel .debug-list { list-style: none; padding: 0; margin: 0; }
+    #debug-panel .debug-list li { padding: 0.15rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    * { scroll-behavior: smooth; }
+    .panel, .window { transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .message { transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .generating-status { font-size: 0.8rem; opacity: 0.85; padding: 0.25rem 0; min-height: 1.25rem; }
+    .load-more-row { text-align: center; padding: 0.5rem; }
+    .load-more-btn { font-size: 0.85rem; padding: 0.35rem 0.75rem; }
+    .prompt-preview { font-size: 0.75rem; white-space: pre-wrap; max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 6px; margin-top: 0.25rem; }
+    .error-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(200,70,68,0.95); color: #fff; padding: 0.5rem 1rem; border-radius: 8px; z-index: 300; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .error-toast .retry-btn { background: rgba(255,255,255,0.3); border: none; padding: 0.25rem 0.5rem; border-radius: 4px; color: inherit; cursor: pointer; }
+    .session-title-edit { background: transparent; border: 1px solid transparent; color: inherit; font-size: inherit; font-weight: inherit; padding: 0.15rem 0.25rem; border-radius: 4px; width: 100%; max-width: 320px; }
+    .session-title-edit:focus { outline: none; border-color: rgba(255,255,255,0.4); }
+    .offline-indicator { font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; }
+    .message-actions-row { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.2rem; }
+    .message-actions-row .btn { padding: 0.2rem 0.4rem; font-size: 0.75rem; }
+    .branch-badge { font-size: 0.7rem; padding: 0.15rem 0.35rem; background: rgba(255,255,255,0.2); border-radius: 4px; margin-left: 0.25rem; }
+    @media (max-width: 640px) { .window { width: 95vw; } .sidebar { width: 48px; } .tab { height: 64px; min-width: 48px; font-size: 0.65rem; } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="main-header">
+      <input type="text" id="session-title-input" class="title session-title-edit" value="" placeholder="Session title (e.g. Coffee shop AU)" maxlength="80" aria-label="Session title" />
+      <div class="offline-indicator" id="offline-indicator" aria-live="polite"></div>
+    </header>
+    <main class="chat-area">
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="load-more-row" id="load-more-row" style="display:none;"><button type="button" id="load-more-btn" class="btn load-more-btn">Load older messages</button></div>
+      <div class="input-row">
+        <div class="generating-status" id="generating-status" aria-live="polite"></div>
+        <div class="input-wrapper">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Type a message or use commands..." autocomplete="off" />
+          <button type="button" id="send-btn" class="send-btn" aria-label="Send">
+            <svg class="send-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </main>
+    <aside class="sidebar">
+      <div class="tab menu-tab" data-tab="menu" title="Menu">Menu</div>
+      <div class="tab characters-tab" data-tab="characters" title="Characters">Characters</div>
+      <div class="tab memory-tab" data-tab="memory" title="Memory and lore">Memory and lore</div>
+      <div class="tab relationships-tab" data-tab="scenario" title="Scenario / scene">Scenario</div>
+      <div class="tab style-tab" data-tab="style" title="Style">Style</div>
+      <div class="tab export-tab" data-tab="export" title="Export">Export</div>
+      <div class="tab import-tab" data-tab="import" title="Import">Import</div>
+      <div class="tab reset-tab" data-tab="reset" title="Reset">Reset</div>
+    </aside>
+    <div id="menu-panel" class="panel" data-panel="menu" aria-hidden="true">
+      <button type="button" class="panel-close" aria-label="Close">&times;</button>
+      <p class="panel-hint">Use the tabs to open Characters, Memory, Scenario, or Style. Export/Import/Reset are actions.</p>
+      <div id="branch-list-container" style="margin-top:0.5rem;">
+        <span class="panel-hint">Branches:</span>
+        <div id="branch-list"></div>
+      </div>
+      <label class="theme-option" style="margin-top:0.5rem;"><input type="checkbox" id="debug-panel-toggle" /> Why did you say that? (debug)</label>
+      <button type="button" id="api-settings-btn" class="btn" style="margin-top:0.5rem;">API / LLM settings</button>
+    </div>
+    <div id="debug-panel" class="" aria-hidden="true">
+      <h4>Last response debug</h4>
+      <div class="debug-section"><strong>Memories used</strong><ul id="debug-memories" class="debug-list"></ul></div>
+      <div class="debug-section"><strong>Traits that influenced response</strong><ul id="debug-traits" class="debug-list"></ul></div>
+      <div class="debug-section"><strong>Character intent</strong><span id="debug-intent"></span></div>
+      <div class="debug-section" id="debug-prompt-section" style="display:none;"><strong>System prompt (for LLM)</strong><pre id="debug-prompt-preview" class="prompt-preview"></pre></div>
+    </div>
+    <div id="characters-window" class="window characters-window" data-window="characters" aria-hidden="true">
+      <button type="button" class="window-close" aria-label="Close">&times;</button>
+      <div class="window-title-row">
+        <h2 class="window-title">Characters</h2>
+        <button type="button" id="character-profile-info-btn" class="info-btn" aria-label="How to enter character details">&#8505;</button>
+      </div>
+      <div class="window-body">
+        <label for="character-dropdown">Character</label>
+        <select id="character-dropdown" class="char-dropdown" disabled><option value="">-- Select character --</option></select>
+        <label for="character-raw-input">Character information (use section headers, e.g. General Info: or Personality:)</label>
+        <textarea id="character-raw-input" class="char-textarea" rows="10" placeholder="General Info:&#10;Physical Description:&#10;Personality:&#10;(Speaking style is generated from personality)"></textarea>
+        <div class="char-actions">
+          <button type="button" id="generate-profile-btn" class="btn btn-generate">Generate</button>
+          <button type="button" id="edit-mode-btn" class="btn btn-edit-mode">Edit mode</button>
+        </div>
+        <p class="panel-hint" style="font-size:0.8rem;margin-top:0.25rem;">Generate parses your text into sections and creates a speaking style from your personality. Your words are kept; only speaking style and sliders are generated.</p>
+        <div id="profile-area" class="profile-area"></div>
+        <label for="char-short-term-goal">Short-term goal</label>
+        <input type="text" id="char-short-term-goal" class="scenario-datetime" placeholder="What they want right now" />
+        <label for="char-long-term-goal">Long-term goal</label>
+        <input type="text" id="char-long-term-goal" class="scenario-datetime" placeholder="Bigger objective" />
+        <label for="char-fears">Fears (comma-separated)</label>
+        <input type="text" id="char-fears" class="scenario-datetime" placeholder="e.g. rejection, failure" />
+        <label for="char-status-line">Status line (current situation)</label>
+        <input type="text" id="char-status-line" class="scenario-datetime" placeholder="e.g. At the bar, a bit drunk" />
+        <div style="margin-top:0.5rem;">
+          <span class="panel-hint">Relationship with user</span>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;margin-top:0.25rem;">
+            <label for="char-relationship-strength" style="font-size:0.85rem;">Strength</label>
+            <input type="range" id="char-relationship-strength" min="0" max="100" value="50" step="5" style="width:100px;" aria-label="Relationship strength 0-100%" />
+            <span id="char-relationship-strength-label" aria-live="polite">50%</span>
+            <label for="char-relationship-type" style="font-size:0.85rem;">Type</label>
+            <select id="char-relationship-type" class="char-dropdown" style="min-width:120px;">
+              <option value="neutral">Neutral</option>
+              <option value="friend">Friend</option>
+              <option value="rival">Rival</option>
+              <option value="romantic">Romantic</option>
+              <option value="mentor">Mentor</option>
+              <option value="family">Family</option>
+              <option value="acquaintance">Acquaintance</option>
+            </select>
+          </div>
+        </div>
+        <div id="character-other-relationships-container" style="margin-top:0.5rem;">
+          <span class="panel-hint">Relationships with other characters</span>
+          <div id="character-other-relationships"></div>
+        </div>
+        <button type="button" id="char-image-btn" class="btn btn-image">🖼 Set character picture</button>
+        <input type="file" id="char-image-input" accept="image/*" hidden />
+        <button type="button" id="save-character-btn" class="btn btn-save">Save character</button>
+      </div>
+    </div>
+    <div id="api-settings-window" class="window style-window" data-window="api" aria-hidden="true" style="max-width:480px;">
+      <button type="button" class="window-close" aria-label="Close">&times;</button>
+      <h2 class="window-title">API / LLM settings</h2>
+      <div class="window-body">
+        <p style="font-size:0.85rem;">Optional: use an LLM API for character replies. Keys are stored in memory only (never exported).</p>
+        <label for="api-provider">Provider</label>
+        <select id="api-provider" class="char-dropdown"><option value="none">Off (use built-in replies)</option><option value="openai">OpenAI-compatible</option><option value="local">Local URL</option></select>
+        <label for="api-url">API URL</label>
+        <input type="text" id="api-url" class="scenario-datetime" placeholder="https://api.openai.com/v1/chat/completions or your proxy" />
+        <label for="api-key">API Key (optional for some endpoints)</label>
+        <input type="password" id="api-key" class="scenario-datetime" placeholder="sk-..." autocomplete="off" />
+        <button type="button" id="api-save-btn" class="btn btn-save">Save</button>
+      </div>
+    </div>
+    <div id="memory-window" class="window memory-window" data-window="memory" aria-hidden="true">
+      <button type="button" class="window-close" aria-label="Close">&times;</button>
+      <h2 class="window-title">Memory and lore</h2>
+      <div class="window-body">
+        <label for="memory-textarea">Memory & lore (editable, categorized and numbered)</label>
+        <textarea id="memory-textarea" class="memory-textarea" rows="10"></textarea>
+        <button type="button" id="save-memory-btn" class="btn btn-save">Save</button>
+        <hr style="border-color:rgba(255,255,255,0.2);margin:0.5rem 0;" />
+        <label for="add-memory-content">Add memory</label>
+        <textarea id="add-memory-content" class="memory-textarea" rows="2" placeholder="Memory content..."></textarea>
+        <label for="add-memory-tag">Tag</label>
+        <select id="add-memory-tag" class="char-dropdown"><option value="">None</option><option value="secret">Secret</option><option value="embarrassing">Embarrassing</option><option value="dangerous">Dangerous</option></select>
+        <button type="button" id="add-memory-btn" class="btn">Add memory</button>
+      </div>
+    </div>
+    <div id="scenario-window" class="window scenario-window" data-window="scenario" aria-hidden="true">
+      <button type="button" class="window-close" aria-label="Close">&times;</button>
+      <h2 class="window-title">Scenario</h2>
+      <div class="window-body">
+        <label for="scenario-textarea">Events leading up to now and what characters/user are doing</label>
+        <textarea id="scenario-textarea" class="scenario-textarea" rows="10" placeholder="Describe the setup..."></textarea>
+        <label for="scenario-datetime">Month, day, year and time</label>
+        <input type="text" id="scenario-datetime" class="scenario-datetime" placeholder="e.g. January 15, 2025, 8:00 PM" />
+        <label for="scene-location">Scene location</label>
+        <input type="text" id="scene-location" class="scenario-datetime" placeholder="e.g. Living room" />
+        <label for="scene-phase">Narrative phase</label>
+        <select id="scene-phase" class="char-dropdown">
+          <option value="setup">Setup</option>
+          <option value="escalation">Escalation</option>
+          <option value="aftermath">Aftermath</option>
+        </select>
+        <label for="scene-mood">Scene mood / tone</label>
+        <input type="text" id="scene-mood" class="scenario-datetime" placeholder="e.g. tense, flirty, sad" />
+        <button type="button" id="scene-to-canon-btn" class="btn" title="Add current scene location to world canon">Add scene to canon</button>
+        <button type="button" id="save-scenario-btn" class="btn btn-save">Save</button>
+      </div>
+    </div>
+    <div id="style-window" class="window style-window" data-window="style" aria-hidden="true">
+      <button type="button" class="window-close" aria-label="Close">&times;</button>
+      <h2 class="window-title">Style</h2>
+      <div class="window-body" id="style-themes-list"></div>
+    </div>
+    <div id="character-profile-info-modal" class="modal char-profile-info-modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3 class="window-title" style="margin-top:0;">How to enter character details</h3>
+        <p style="font-size:0.9rem; line-height:1.5; margin:0.75rem 0;">Type your character information in the text area using <strong>section headers</strong> on their own line. Everything under a header is assigned to that section until the next header.</p>
+        <p style="font-size:0.85rem; margin:0.5rem 0;"><strong>Supported headers (use one per line, with or without a colon):</strong></p>
+        <ul style="font-size:0.85rem; margin:0.25rem 0 0.75rem 1.25rem; line-height:1.5;">
+          <li><strong>General Info</strong> — name, age, background (first line is used as the character&apos;s name when you save)</li>
+          <li><strong>Physical Description</strong> or <strong>Appearance</strong> — looks, body</li>
+          <li><strong>Personality</strong> — traits, how they act</li>
+          <li><strong>Sexual Experience</strong> — experience, backstory</li>
+          <li><strong>Kinks</strong> — kinks, preferences</li>
+        </ul>
+        <p style="font-size:0.85rem; margin:0.5rem 0;">Optional: <strong>Likes and dislikes</strong>, <strong>Behavioral rules</strong>. If you don&apos;t use headers, the first paragraph is treated as General Info, the second as Physical Description, the third as Personality.</p>
+        <p style="font-size:0.85rem; margin:0.75rem 0 0;">Click <strong>Generate</strong> to parse your text into these sections and to create a speaking style from your personality. Your words are kept; only speaking style and sliders are generated.</p>
+        <div class="modal-actions">
+          <button type="button" id="character-profile-info-close-btn" class="btn btn-save">Got it</button>
+        </div>
+      </div>
+    </div>
+    <div id="reset-confirm" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <p>Reset everything and start a new story? This cannot be undone.</p>
+        <div class="modal-actions">
+          <button type="button" id="reset-cancel-btn" class="btn">Cancel</button>
+          <button type="button" id="reset-confirm-btn" class="btn btn-danger">Reset</button>
+        </div>
+      </div>
+    </div>
+    <div id="conflict-modal" class="modal conflict-modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3 class="window-title">Narrative conflict</h3>
+        <p>This edit may conflict with established facts or memories. Review and choose how to proceed.</p>
+        <div id="conflict-list" class="conflict-list"></div>
+        <div class="modal-actions">
+          <button type="button" id="conflict-keep-edit-btn" class="btn btn-save">Keep edit</button>
+          <button type="button" id="conflict-revert-btn" class="btn">Revert</button>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="import-file-input" accept=".json" hidden />
+    <div id="restore-session-modal" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3 class="window-title">Restore session?</h3>
+        <p>Saved progress was found. Restore it?</p>
+        <div class="modal-actions">
+          <button type="button" id="restore-no-btn" class="btn">Start fresh</button>
+          <button type="button" id="restore-yes-btn" class="btn btn-save">Restore</button>
+        </div>
+      </div>
+    </div>
+    <div id="export-options-modal" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h3 class="window-title">Export options</h3>
+        <p style="font-size:0.9rem;">Exports may contain sensitive or personal content. Only share with people you trust.</p>
+        <label class="theme-option"><input type="checkbox" id="export-include-chat" checked /> Include chat log</label>
+        <div class="modal-actions">
+          <button type="button" id="export-cancel-btn" class="btn">Cancel</button>
+          <button type="button" id="export-script-btn" class="btn">Export as script</button>
+          <button type="button" id="export-confirm-btn" class="btn btn-save">Export JSON</button>
+        </div>
+      </div>
+    </div>
+    <div id="error-toast" class="error-toast" style="display:none;" role="alert">
+      <span id="error-toast-message"></span>
+      <button type="button" id="error-toast-retry" class="retry-btn">Retry</button>
+    </div>
+  </div>
+  <script>
+(function() {
+  'use strict';
+
+  var EXPORT_VERSION = 2;
+  var SCHEMA_VERSION = 3;
+  var MEMORY_CAP = 500;
+  var AUTO_SAVE_KEY = 'character-chat-autosave';
+  var AUTO_SAVE_INTERVAL_MS = 30000;
+  var defaultUserName = 'User';
+  var apiConfig = { provider: 'none', apiUrl: '', apiKey: '' };
+  var state = {
+    userName: defaultUserName,
+    characters: {},
+    chatLog: [],
+    memoryLore: '',
+    memories: [],
+    scenario: { setup: '', datetime: '' },
+    narrative: { scene: '', location: '', timeProgress: 0, phase: 'ongoing', scheduledEvents: [], scheduledActions: [] },
+    shortTermContext: { lastN: 10, participants: [], currentTopics: [], emotionalTone: 'neutral' },
+    responseRestriction: null,
+    pendingFix: null,
+    theme: { background: 'starry', menuWindows: 'default', font: '#FFFFFF' },
+    turnIndex: 0,
+    nextMessageId: 0,
+    characterCognition: {},
+    characterEmotions: {},
+    scene: { location: '', participants: [], rules: [], phase: 'setup', locationHistory: [], mood: '' },
+    canon: { facts: [], beliefs: {}, falseMemoryFlags: {}, misunderstandingVsDeception: {} },
+    sessionTitle: '',
+    relationships: {},
+    currentBranchId: 'main',
+    branches: { main: { id: 'main', parentId: null, parentMessageId: null, chatLog: [], nextMessageId: 0 } },
+    editingConsequences: [],
+    pendingConflict: null,
+    scenarioGroundingDone: false,
+    lastDebugInfo: null,
+    debugPanelVisible: false,
+    chatLogSliceStart: 0,
+    pendingRetryContext: null,
+    characterRecentContext: {}
+  };
+
+  function getState() { return state; }
+  function getCharacters() { return state.characters; }
+  function getCharacter(id) { return state.characters[id] || null; }
+  function setCharacter(id, data) { state.characters[id] = Object.assign({}, state.characters[id], data); return state.characters[id]; }
+  function getChatLog() { return state.chatLog; }
+  function appendMessage(msg) {
+    var id = 'msg-' + (state.nextMessageId++);
+    var entry = Object.assign({}, msg, { id: id, timestamp: Date.now() });
+    state.chatLog.push(entry);
+    state.turnIndex++;
+    commitCurrentBranchToLog();
+    return entry;
+  }
+  function updateMessage(id, updates) {
+    var i = state.chatLog.findIndex(function(m) { return m.id === id; });
+    if (i === -1) return null;
+    state.chatLog[i] = Object.assign({}, state.chatLog[i], updates);
+    return state.chatLog[i];
+  }
+  function deleteMessage(id) {
+    var i = state.chatLog.findIndex(function(m) { return m.id === id; });
+    if (i === -1) return false;
+    state.chatLog.splice(i, 1);
+    commitCurrentBranchToLog();
+    return true;
+  }
+  function getMemoryLore() { return state.memoryLore; }
+  function setMemoryLore(text) { state.memoryLore = text; }
+  function getMemories() { return state.memories; }
+  function setMemories(list) { state.memories = list; }
+  function getScenario() { return state.scenario; }
+  function setScenario(setup, datetime) { state.scenario = { setup: setup || '', datetime: datetime || '' }; }
+  function getNarrative() { return state.narrative; }
+  function setNarrative(updates) { Object.assign(state.narrative, updates); }
+  function getUserName() { return state.userName; }
+  function setUserName(name) { state.userName = (name || defaultUserName).trim() || defaultUserName; }
+  function getResponseRestriction() { return state.responseRestriction; }
+  function setResponseRestriction(characterId) { state.responseRestriction = characterId; }
+  function getPendingFix() { return state.pendingFix; }
+  function setPendingFix(fix) { state.pendingFix = fix; }
+  function getTheme() { return state.theme; }
+  function setTheme(updates) { Object.assign(state.theme, updates); }
+  function getTurnIndex() { return state.turnIndex; }
+  function getCharacterCognition(charId) { return state.characterCognition[charId] || { goals: [], motivations: [], beliefs: [], conflicts: [], shortTermGoal: null, longTermGoal: null, fears: [] }; }
+  function setCharacterCognition(charId, data) { state.characterCognition[charId] = Object.assign({ goals: [], motivations: [], beliefs: [], conflicts: [], shortTermGoal: null, longTermGoal: null, fears: [] }, state.characterCognition[charId], data); return state.characterCognition[charId]; }
+  function getCharacterEmotions(charId) { return state.characterEmotions[charId] || { state: {}, decayRate: 0.1, carryover: 0.7, lastUpdate: Date.now() }; }
+  function setCharacterEmotions(charId, data) { state.characterEmotions[charId] = Object.assign({ state: {}, decayRate: 0.1, carryover: 0.7, lastUpdate: Date.now() }, state.characterEmotions[charId], data); state.characterEmotions[charId].lastUpdate = Date.now(); return state.characterEmotions[charId]; }
+  function getScene() { return state.scene; }
+  function setScene(updates) { Object.assign(state.scene, updates); return state.scene; }
+  function getSessionTitle() { return state.sessionTitle || ''; }
+  function setSessionTitle(t) { state.sessionTitle = (t || '').trim(); return state.sessionTitle; }
+  function relKey(a, b) { if (!a || !b) return ''; var ids = [String(a), String(b)].sort(); return ids[0] + ':' + ids[1]; }
+  function getRelationship(a, b) { var key = relKey(a, b); return state.relationships[key] || { strength: 0.5, type: 'neutral' }; }
+  function setRelationship(a, b, data) { var key = relKey(a, b); if (!key) return; state.relationships[key] = Object.assign({ strength: 0.5, type: 'neutral' }, state.relationships[key], data); return state.relationships[key]; }
+  function getCharacterRecentContext(charId) { return (state.characterRecentContext || {})[charId] || { lastExchangeTone: 'neutral' }; }
+  function setCharacterRecentContext(charId, data) { state.characterRecentContext = state.characterRecentContext || {}; state.characterRecentContext[charId] = Object.assign({ lastExchangeTone: 'neutral' }, state.characterRecentContext[charId], data); return state.characterRecentContext[charId]; }
+  function updateRelationshipFromInteraction(partyA, partyB, messageFromA, messageFromB) {
+    var rel = getRelationship(partyA, partyB);
+    var strength = rel.strength != null ? rel.strength : 0.5;
+    var combined = ((messageFromA || '') + ' ' + (messageFromB || '')).toLowerCase();
+    var positive = /\b(thanks|thank you|love|great|awesome|happy|glad|wonderful|yes|please|kind|sweet|good|nice|glad|appreciate)\b/.test(combined);
+    var negative = /\b(no|stop|hate|angry|leave|never|worst|terrible|horrible|shut up|go away|don't|dumb|stupid)\b/.test(combined);
+    if (positive && !negative) strength = Math.min(1, strength + 0.02);
+    if (negative && !positive) strength = Math.max(0, strength - 0.02);
+    setRelationship(partyA, partyB, { strength: strength });
+  }
+  function updateRecentContextFromExchange(charId, userMsg, charReply) {
+    var combined = ((userMsg || '') + ' ' + (charReply || '')).toLowerCase();
+    var positive = /\b(thanks|love|great|awesome|happy|glad|wonderful|yes|kind|sweet|good|nice|appreciate|laugh|smile)\b/.test(combined);
+    var negative = /\b(no|stop|hate|angry|leave|never|worst|terrible|horrible|shut up|go away|dumb|stupid|sorry|apolog)\b/.test(combined);
+    var tone = negative && !positive ? 'tense' : positive && !negative ? 'warm' : 'neutral';
+    setCharacterRecentContext(charId, { lastExchangeTone: tone });
+  }
+  function getCurrentBranchId() { return state.currentBranchId || 'main'; }
+  function getBranches() { return state.branches || { main: { id: 'main', parentId: null, parentMessageId: null, chatLog: [], nextMessageId: 0 } }; }
+  function setBranches(b) { state.branches = b; }
+  function getBranch(id) { return (state.branches || {})[id] || null; }
+  function createBranchFromMessage(messageId) {
+    var log = getChatLog();
+    var idx = log.findIndex(function(m) { return m.id === messageId; });
+    if (idx === -1) return null;
+    var upTo = log.slice(0, idx + 1);
+    var branchId = 'branch-' + Date.now();
+    var nextId = state.nextMessageId;
+    state.branches[branchId] = { id: branchId, parentId: getCurrentBranchId(), parentMessageId: messageId, chatLog: upTo.slice(), nextMessageId: nextId };
+    state.chatLog = upTo.slice();
+    state.nextMessageId = nextId;
+    state.currentBranchId = branchId;
+    state.chatLogSliceStart = 0;
+    return branchId;
+  }
+  function switchBranch(branchId) {
+    var b = getBranch(branchId);
+    if (!b) return false;
+    state.currentBranchId = branchId;
+    state.chatLog = (b.chatLog || []).slice();
+    state.nextMessageId = b.nextMessageId != null ? b.nextMessageId : state.nextMessageId;
+    state.chatLogSliceStart = 0;
+    return true;
+  }
+  function commitCurrentBranchToLog() {
+    var id = getCurrentBranchId();
+    var b = getBranch(id);
+    if (b) { b.chatLog = getChatLog().slice(); b.nextMessageId = state.nextMessageId; state.branches[id] = b; }
+  }
+  function getCanon() { return state.canon; }
+  function setCanon(updates) { Object.assign(state.canon, updates); return state.canon; }
+  function getEditingConsequences() { return state.editingConsequences; }
+  function setEditingConsequences(list) { state.editingConsequences = list || []; }
+  function getPendingConflict() { return state.pendingConflict; }
+  function setPendingConflict(c) { state.pendingConflict = c; }
+  function getScenarioGroundingDone() { return state.scenarioGroundingDone; }
+  function setScenarioGroundingDone(v) { state.scenarioGroundingDone = !!v; }
+  function getLastDebugInfo() { return state.lastDebugInfo; }
+  function setLastDebugInfo(info) { state.lastDebugInfo = info; }
+  function getDebugPanelVisible() { return state.debugPanelVisible; }
+  function setDebugPanelVisible(v) { state.debugPanelVisible = !!v; }
+  function resetAll() {
+    state.userName = defaultUserName;
+    state.characters = {};
+    state.chatLog = [];
+    state.memoryLore = '';
+    state.memories = [];
+    state.scenario = { setup: '', datetime: '' };
+    state.narrative = { scene: '', location: '', timeProgress: 0, phase: 'ongoing', scheduledEvents: [], scheduledActions: [] };
+    state.shortTermContext = { lastN: 10, participants: [], currentTopics: [], emotionalTone: 'neutral' };
+    state.responseRestriction = null;
+    state.pendingFix = null;
+    state.characterCognition = {};
+    state.characterEmotions = {};
+    state.scene = { location: '', participants: [], rules: [], phase: 'setup', locationHistory: [], mood: '' };
+    state.canon = { facts: [], beliefs: {}, falseMemoryFlags: {}, misunderstandingVsDeception: {} };
+    state.sessionTitle = '';
+    state.relationships = {};
+    state.currentBranchId = 'main';
+    state.branches = { main: { id: 'main', parentId: null, parentMessageId: null, chatLog: [], nextMessageId: 0 } };
+    state.editingConsequences = [];
+    state.pendingConflict = null;
+    state.scenarioGroundingDone = false;
+    state.lastDebugInfo = null;
+    state.debugPanelVisible = false;
+    state.turnIndex = 0;
+    state.nextMessageId = 0;
+    state.chatLogSliceStart = 0;
+    state.pendingRetryContext = null;
+    state.characterRecentContext = {};
+  }
+  function migrateFromV1(data) {
+    if (data.characterCognition == null) data.characterCognition = {};
+    if (data.characterEmotions == null) data.characterEmotions = {};
+    if (data.scene == null) data.scene = { location: '', participants: [], rules: [], phase: 'setup', locationHistory: [], mood: '' };
+    else {
+      data.scene.location = data.scene.location || '';
+      data.scene.participants = data.scene.participants || [];
+      data.scene.rules = data.scene.rules || [];
+      data.scene.phase = data.scene.phase || 'setup';
+      data.scene.locationHistory = data.scene.locationHistory || [];
+      if (data.scene.mood == null) data.scene.mood = '';
+    }
+    if (data.canon == null) data.canon = { facts: [], beliefs: {}, falseMemoryFlags: {}, misunderstandingVsDeception: {} };
+    if (data.memories && Array.isArray(data.memories)) {
+      data.memories = data.memories.map(function(m) {
+        if (m.emotionalTag == null) m.emotionalTag = 'neutral';
+        if (m.narrativeSalience == null) m.narrativeSalience = 0.5;
+        if (m.importanceDecay == null) m.importanceDecay = 1;
+        if (m.createdAt == null) m.createdAt = m.source && m.source.timestamp || Date.now();
+        if (m.memoryTag == null) m.memoryTag = null;
+        if (m.reinforcementCount == null) m.reinforcementCount = 0;
+        return m;
+      });
+    }
+    return data;
+  }
+  function importData(data) {
+    var v = data.version == null ? 1 : data.version;
+    if (v < EXPORT_VERSION) data = migrateFromV1(data);
+    if (data.userName != null) state.userName = data.userName;
+    if (data.characters != null) state.characters = Object.assign({}, data.characters);
+    if (Array.isArray(data.chatLog)) {
+      state.chatLog = data.chatLog.slice();
+      var ids = state.chatLog.map(function(m) { return parseInt((m.id || '').replace('msg-', ''), 10); }).filter(function(n) { return !isNaN(n); });
+      state.nextMessageId = data.nextMessageId != null ? data.nextMessageId : (ids.length ? Math.max.apply(null, ids) + 1 : 0);
+    }
+    if (data.memoryLore != null) state.memoryLore = data.memoryLore;
+    if (Array.isArray(data.memories)) state.memories = data.memories.slice();
+    if (data.scenario != null) state.scenario = Object.assign({}, state.scenario, data.scenario);
+    if (data.narrative != null) state.narrative = Object.assign({}, state.narrative, data.narrative);
+    if (data.theme != null) state.theme = Object.assign({}, state.theme, data.theme);
+    if (data.characterCognition != null) state.characterCognition = Object.assign({}, data.characterCognition);
+    if (data.characterEmotions != null) state.characterEmotions = Object.assign({}, data.characterEmotions);
+    if (data.scene != null) state.scene = Object.assign({}, state.scene, data.scene);
+    if (data.canon != null) state.canon = Object.assign({}, state.canon, data.canon);
+    if (data.scenarioGroundingDone != null) state.scenarioGroundingDone = data.scenarioGroundingDone;
+    if (data.sessionTitle != null) state.sessionTitle = data.sessionTitle;
+    if (data.relationships != null) state.relationships = Object.assign({}, data.relationships);
+    if (data.currentBranchId != null) state.currentBranchId = data.currentBranchId;
+    if (data.branches != null) state.branches = Object.assign({}, data.branches);
+    if (data.characterRecentContext != null) state.characterRecentContext = Object.assign({}, data.characterRecentContext);
+    if (!state.branches[state.currentBranchId]) state.branches[state.currentBranchId] = { id: state.currentBranchId, parentId: null, parentMessageId: null, chatLog: [], nextMessageId: state.nextMessageId };
+    state.branches[state.currentBranchId].chatLog = state.chatLog.slice();
+    state.branches[state.currentBranchId].nextMessageId = state.nextMessageId;
+  }
+
+  var COMMAND_PATTERNS = [
+    { key: 'UN', regex: /\/\/UN:\s*([^\/]+)\s*\/\//i, parse: function(m) { return { command: 'UN', userName: m[1].trim() }; } },
+    { key: 'AS', regex: /\/\/AS:\s*([^\/]+)\s*\/\//i, parse: function(m) { return { command: 'AS', characterName: m[1].trim() }; } },
+    { key: 'RH', regex: /\/\/RH:\s*([^\/]+)\s*\/\//i, parse: function(m) { return { command: 'RH', characterName: m[1].trim() }; } },
+    { key: 'R', regex: /\/\/R:\s*Any\s*\/\//i, parse: function() { return { command: 'R' }; } },
+    { key: 'Action', regex: /\/\/Action:\s*([^,]+),\s*Who:\s*([^,]+),\s*When:\s*([^\/]+)\s*\/\//i, parse: function(m) { return { command: 'Action', description: m[1].trim(), who: m[2].trim(), when: m[3].trim() }; } },
+    { key: 'Fix', regex: /\/\/Fix:\s*([^,]+),\s*Who:\s*([^\/]+)\s*\/\//i, parse: function(m) { return { command: 'Fix', description: m[1].trim(), who: m[2].trim() }; } },
+    { key: 'Event', regex: /\/\/Event:\s*([^,]+),\s*When:\s*([^\/]+)\s*\/\//i, parse: function(m) { return { command: 'Event', description: m[1].trim(), when: m[2].trim() }; } }
+  ];
+  function parseCommands(text) {
+    var results = [];
+    var remaining = text;
+    for (var i = 0; i < COMMAND_PATTERNS.length; i++) {
+      var p = COMMAND_PATTERNS[i];
+      var m = remaining.match(p.regex);
+      if (m) { results.push(p.parse(m)); remaining = remaining.replace(m[0], '').trim(); }
+    }
+    return { commands: results, remainingText: remaining.trim() };
+  }
+  function parseTurnText(input) {
+    var whenTurn = input.match(/turn\s*(\d+)/i) || input.match(/(\d+)\s*turn/i);
+    return whenTurn ? parseInt(whenTurn[1], 10) : null;
+  }
+
+  var SECTION_HEADERS = [
+    { pattern: /^(?:general\s+info(?:rmation)?|name|overview)\s*:?\s*$/i, key: 'general_info' },
+    { pattern: /^(?:physical(?:\s+description)?|appearance|looks)\s*:?\s*$/i, key: 'physical_description' },
+    { pattern: /^personality\s*:?\s*$/i, key: 'personality' },
+    { pattern: /^(?:sexual\s+experience|experience|backstory)\s*:?\s*$/i, key: 'sexual_experience' },
+    { pattern: /^kinks\s*:?\s*$/i, key: 'kinks' },
+    { pattern: /^(?:likes(?:\s+and|\/)?\s*dislikes?|likes_dislikes)\s*:?\s*$/i, key: 'likes_dislikes' },
+    { pattern: /^(?:behavioral\s+rules?|rules)\s*:?\s*$/i, key: 'behavioral_rules' },
+    { pattern: /^(?:sentence\s+length|sentence_length)\s*:?\s*$/i, key: 'sentence_length_bias' },
+    { pattern: /^emoji\s+tolerance\s*:?\s*$/i, key: 'emoji_tolerance' },
+    { pattern: /^formality(?:\s+scale)?\s*:?\s*$/i, key: 'formality_scale' },
+    { pattern: /^swear\s+frequency\s*:?\s*$/i, key: 'swear_frequency' }
+  ];
+  function parseCategories(text) {
+    var categories = {};
+    var lines = (text || '').split(/\r?\n/);
+    var currentKey = null;
+    var currentParts = [];
+    function flush() {
+      if (currentKey && currentParts.length) categories[currentKey] = currentParts.join('\n').trim();
+      currentParts = [];
+    }
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var matched = false;
+      for (var h = 0; h < SECTION_HEADERS.length; h++) {
+        var header = SECTION_HEADERS[h];
+        if (header.pattern.test(line.trim())) {
+          flush();
+          currentKey = header.key;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        if (currentKey) currentParts.push(line);
+        else if (line.trim()) {
+          if (!categories.general_info) { currentKey = 'general_info'; currentParts.push(line); }
+          else { currentParts.push(line); }
+        }
+      }
+    }
+    flush();
+    if (Object.keys(categories).length === 0 && text && text.trim()) {
+      var parts = (text || '').trim().split(/\n\n+/);
+      categories = { general_info: parts[0] || '', physical_description: parts[1] || '', personality: parts[2] || parts.slice(1).join('\n\n') || '', sexual_experience: '', kinks: '' };
+    }
+    return categories;
+  }
+  function generateSpeakingStyle(profile) {
+    var p = (profile.personality || '').toLowerCase();
+    var gen = (profile.general_info || '').toLowerCase();
+    var kinks = (profile.kinks || '').toLowerCase();
+    var parts = [];
+    var shy = /\b(shy|quiet|reserved|introvert|reticent)\b/.test(p);
+    var bold = /\b(confident|bold|assertive|outgoing|dominant)\b/.test(p);
+    var formal = /\b(formal|proper|professional|refined|elegant)\b/.test(p);
+    var casual = /\b(casual|relaxed|laid-back|easygoing|chill)\b/.test(p);
+    var humor = /\b(humor|humour|funny|witty|sarcastic|sardonic|dry\s+wit)\b/.test(p);
+    var warm = /\b(warm|kind|gentle|sweet|affectionate|nurturing)\b/.test(p);
+    var cold = /\b(cold|distant|aloof|guarded|stoic)\b/.test(p);
+    var flirt = /\b(flirt|flirty|seductive|teasing|playful)\b/.test(p) || /\b(flirt|teasing|playful)\b/.test(kinks);
+    var crude = /\b(crude|vulgar|blunt|rough)\b/.test(p);
+    var polite = /\b(polite|courteous|tactful|diplomatic)\b/.test(p);
+    var verbose = /\b(verbose|eloquent|articulate|long-winded)\b/.test(p);
+    var terse = /\b(brief|terse|laconic|curt|short)\b/.test(p);
+    var young = /\b(young|teen|20s|twenties|gen\s*z)\b/i.test(gen) || /\b(teen|20s)\b/.test(p);
+    if (shy && !bold) parts.push('Tends to be brief and reserved; may take a moment to open up.');
+    else if (bold && !shy) parts.push('Direct and assertive; speaks with confidence.');
+    else if (shy && bold) parts.push('Can seem reserved at first but becomes direct when comfortable.');
+    if (formal && !casual) parts.push('Uses proper grammar and avoids slang.');
+    else if (casual && !formal) parts.push('Uses contractions and casual, natural phrasing.');
+    else if (formal && casual) parts.push('Mixes formal and casual depending on context.');
+    if (humor) parts.push('Often uses wit, sarcasm, or dry humor.');
+    if (warm && !cold) parts.push('Tone is warm and kind.');
+    if (cold && !warm) parts.push('Tone can be distant or guarded.');
+    if (flirt) parts.push('May flirt, tease, or be playfully suggestive.');
+    if (polite && !crude) parts.push('Generally polite and avoids crude language.');
+    if (crude && !polite) parts.push('Can be blunt or use crude language when it fits.');
+    if (young) parts.push('May use contemporary or youthful expressions.');
+    if (verbose && !terse) parts.push('Tends toward longer, more elaborate sentences.');
+    if (terse && !verbose) parts.push('Prefers short, to-the-point replies.');
+    if (parts.length === 0) parts.push('Speaks in character; tone matches context.');
+    var sentenceBias = profile.sentenceLengthBias || 'medium';
+    var formalityScale = profile.formalityScale != null ? profile.formalityScale : 0.5;
+    if (sentenceBias === 'short') parts.push('Keep responses relatively brief.');
+    else if (sentenceBias === 'long') parts.push('Elaborate when appropriate.');
+    if (formalityScale >= 0.7) parts.push('Maintain a formal register.');
+    else if (formalityScale <= 0.3) parts.push('Keep register casual.');
+    return parts.join(' ');
+  }
+  function generateCharacterProfile(userInput) {
+    var raw = (userInput || '').trim();
+    var cats = parseCategories(raw);
+    if (Object.keys(cats).length === 0 && raw) {
+      var parts = raw.split(/\n\n+/);
+      cats = { general_info: parts[0] || '', physical_description: parts[1] || '', personality: parts[2] || parts.slice(1).join(' ') || '', sexual_experience: '', kinks: '' };
+    }
+    var generalInfo = cats.general_information || cats.general_info || '';
+    var physicalDesc = cats.physical_description || '';
+    var personality = cats.personality || '';
+    var sexualExp = cats.sexual_experience || '';
+    var kinks = cats.kinks || '';
+    var likesDislikes = (cats.likes_dislikes || '').split(/[,;]/).map(function(s) { return s.trim(); }).filter(Boolean).join(', ') || '(see personality and kinks)';
+    var behavioralRules = (cats.behavioral_rules || '').split(/[\n;]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    if (!behavioralRules.length && personality) behavioralRules = ['Stay in character', 'Match personality and tone'];
+    var pLower = personality.toLowerCase();
+    var sentenceLengthBias = (cats.sentence_length_bias || cats.sentence_length || '').toLowerCase() || (pLower.indexOf('brief') !== -1 || pLower.indexOf('terse') !== -1 ? 'short' : pLower.indexOf('verbose') !== -1 ? 'long' : 'medium');
+    if (sentenceLengthBias !== 'short' && sentenceLengthBias !== 'long') sentenceLengthBias = 'medium';
+    var emojiTolerance = parseFloat(cats.emoji_tolerance) || (pLower.indexOf('playful') !== -1 ? 0.7 : pLower.indexOf('formal') !== -1 ? 0.1 : 0.4);
+    emojiTolerance = Math.max(0, Math.min(1, emojiTolerance));
+    var swearFrequency = parseFloat(cats.swear_frequency) || (pLower.indexOf('crude') !== -1 ? 0.6 : pLower.indexOf('polite') !== -1 ? 0 : 0.2);
+    swearFrequency = Math.max(0, Math.min(1, swearFrequency));
+    var formalityScale = parseFloat(cats.formality_scale) || (pLower.indexOf('formal') !== -1 ? 0.9 : pLower.indexOf('casual') !== -1 ? 0.2 : 0.5);
+    formalityScale = Math.max(0, Math.min(1, formalityScale));
+    var speakingStyle = generateSpeakingStyle({ personality: personality, general_info: generalInfo, kinks: kinks, sentenceLengthBias: sentenceLengthBias, formalityScale: formalityScale });
+    var profile = { general_info: generalInfo, physical_description: physicalDesc, personality: personality, sexual_experience: sexualExp, kinks: kinks, likes_dislikes: likesDislikes, speaking_style: speakingStyle, behavioral_rules: behavioralRules, sentenceLengthBias: sentenceLengthBias, emojiTolerance: emojiTolerance, swearFrequency: swearFrequency, formalityScale: formalityScale };
+    var formatted = ['— Your input is parsed into sections below; "Speaking style" and "Speech tics" are generated from your personality —', '', 'General Info:', generalInfo || '(not specified)', '', 'Physical Description:', physicalDesc || '(not specified)', '', 'Personality:', personality || '(not specified)', '', 'Sexual Experience:', sexualExp || '(not specified)', '', 'Kinks:', kinks || '(not specified)', '', 'Likes / dislikes:', likesDislikes, '', 'Speaking style (generated):', speakingStyle, '', 'Behavioral rules:', behavioralRules.join('; '), '', 'Speech tics (inferred):', 'sentence: ' + sentenceLengthBias + ', formality: ' + formalityScale].join('\n');
+    return { profile: profile, formatted: formatted, categories: cats };
+  }
+  function inferEmotionalTagFromText(text) {
+    var t = (text || '').toLowerCase();
+    if (/\b(happy|love|glad|great)\b/.test(t)) return 'joy';
+    if (/\b(sad|sorry|miss|hurt)\b/.test(t)) return 'sadness';
+    if (/\b(angry|hate|mad|annoyed)\b/.test(t)) return 'anger';
+    if (/\b(scared|worried|afraid)\b/.test(t)) return 'fear';
+    if (/\?|!\b(wow|really)\b/.test(t)) return 'surprise';
+    return 'neutral';
+  }
+  function narrativeSalienceScore(text) {
+    var t = (text || '').trim();
+    if (t.length > 150) return 0.8;
+    if (t.length > 80) return 0.6;
+    if (t.length > 30) return 0.5;
+    return 0.3;
+  }
+  function inferMemoryTag(text) {
+    var t = (text || '').toLowerCase();
+    if (/\b(secret|hidden|never tell|don't tell)\b/.test(t)) return 'secret';
+    if (/\b(embarrassed|ashamed|humiliat)\b/.test(t)) return 'embarrassing';
+    if (/\b(danger|risk|threat|kill|hurt)\b/.test(t)) return 'dangerous';
+    return null;
+  }
+  function extractMemoriesFromMessage(msg, characterId, confidence) {
+    confidence = confidence === undefined ? 0.8 : confidence;
+    var entries = [];
+    var body = (msg.body || '').trim();
+    if (!body) return entries;
+    var source = { type: 'chat', messageId: msg.id, timestamp: msg.timestamp };
+    var normalized = body.replace(/\s+/g, ' ').trim();
+    if (normalized.length > 10) {
+      var now = Date.now();
+      var emotionalTag = inferEmotionalTagFromText(body);
+      var salience = narrativeSalienceScore(body);
+      var amp = emotionalAmplification(confidence, emotionalTag, emotionalTag);
+      var importanceDecay = 1;
+      var memoryTag = inferMemoryTag(body);
+      entries.push({ id: 'mem-' + now + '-' + Math.random().toString(36).slice(2, 9), type: 'memory', content: normalized.slice(0, 300), confidence: amp, source: source, characterId: characterId || null, emotionalTag: emotionalTag, narrativeSalience: salience, importanceDecay: importanceDecay, createdAt: now, memoryTag: memoryTag });
+    }
+    return entries;
+  }
+  function getRelevantMemories(options) {
+    options = options || {};
+    var topic = options.topic; var participants = options.participants || []; var characterId = options.characterId; var limit = options.limit === undefined ? 5 : options.limit; var scenePhase = options.scenePhase; var location = options.location;
+    var memories = getMemories();
+    var now = Date.now();
+    var scored = memories.map(function(m) {
+      var score = m.confidence != null ? m.confidence : 0.5;
+      var decay = importanceDecayForMemory(m, now);
+      score *= decay;
+      score *= (m.importanceDecay != null ? m.importanceDecay : 1);
+      if ((m.reinforcementCount || 0) > 0) score *= (1 + Math.min(0.2, m.reinforcementCount * 0.05));
+      if (characterId && m.characterId === characterId) score += 0.2;
+      if (topic && m.content) {
+        var contentLower = m.content.toLowerCase();
+        if (contentLower.indexOf(topic.toLowerCase()) !== -1) score += 0.3;
+        else {
+          var topicWords = (topic.toLowerCase().match(/\b\w{3,}\b/g) || []);
+          var matchCount = 0;
+          for (var w = 0; w < topicWords.length; w++) { if (contentLower.indexOf(topicWords[w]) !== -1) matchCount++; }
+          if (matchCount > 0) score += Math.min(0.35, matchCount * 0.12);
+        }
+      }
+      if (participants.length && m.content) { for (var i = 0; i < participants.length; i++) { if (m.content.toLowerCase().indexOf(String(participants[i]).toLowerCase()) !== -1) { score += 0.2; break; } } }
+      if (m.narrativeSalience != null) score += m.narrativeSalience * 0.2;
+      return Object.assign({}, m, { score: score });
+    });
+    scored = emotionInfluencedRecall(scored, characterId);
+    scored = scored.map(function(m) { var s = m.score + (m.emotionBoost || 0); return Object.assign({}, m, { score: s }); });
+    if (scenePhase || location) scored = sceneAwareMemoryWeight(scored, scenePhase || getScenePhase(), location || getScene().location);
+    else scored = scored.map(function(m) { return Object.assign({}, m, { sceneWeight: m.score }); });
+    scored.sort(function(a, b) { return (b.sceneWeight != null ? b.sceneWeight : b.score) - (a.sceneWeight != null ? a.sceneWeight : a.score); });
+    return scored.slice(0, limit).map(function(x) { var m = {}; for (var k in x) if (k !== 'score' && k !== 'emotionBoost' && k !== 'sceneWeight') m[k] = x[k]; return m; });
+  }
+  function pruneMemoriesIfOverCap() {
+    var list = getMemories();
+    if (list.length <= MEMORY_CAP) return;
+    var scored = list.map(function(m) {
+      var s = (m.narrativeSalience != null ? m.narrativeSalience : 0.5) * ((m.reinforcementCount || 0) + 1);
+      return { m: m, score: s, createdAt: m.createdAt || 0 };
+    });
+    scored.sort(function(a, b) { return a.score !== b.score ? b.score - a.score : a.createdAt - b.createdAt; });
+    setMemories(scored.slice(0, MEMORY_CAP).map(function(x) { return x.m; }));
+  }
+  function addMemory(entry) {
+    var list = getMemories();
+    var type = entry.type || 'memory';
+    var id = entry.id || 'mem-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+    list.push({ id: id, type: type, content: entry.content, confidence: entry.confidence != null ? entry.confidence : 0.8, source: entry.source || { type: 'system' }, characterId: entry.characterId != null ? entry.characterId : null, emotionalTag: entry.emotionalTag || 'neutral', narrativeSalience: entry.narrativeSalience != null ? entry.narrativeSalience : 0.5, importanceDecay: entry.importanceDecay != null ? entry.importanceDecay : 1, createdAt: entry.createdAt || Date.now(), memoryTag: entry.memoryTag || null, reinforcementCount: entry.reinforcementCount || 0 });
+    setMemories(list.slice());
+    pruneMemoriesIfOverCap();
+    var lore = getMemoryLore();
+    var line = type.charAt(0).toUpperCase() + type.slice(1) + ' ' + list.filter(function(m) { return m.type === type; }).length + ': ' + (entry.content || '').slice(0, 200) + (entry.content && entry.content.length > 200 ? '...' : '');
+    setMemoryLore(lore ? lore + '\n' + line : line);
+  }
+  function reinforceMemory(memoryId) {
+    var list = getMemories();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === memoryId) {
+        list[i] = Object.assign({}, list[i], { reinforcementCount: (list[i].reinforcementCount || 0) + 1, lastUsedAt: Date.now() });
+        if (list[i].importanceDecay != null) list[i].importanceDecay = Math.min(1, (list[i].importanceDecay || 1) + 0.05);
+        break;
+      }
+    }
+    setMemories(list.slice());
+  }
+  function invalidateMemoriesByMessageId(messageId) {
+    setMemories(getMemories().filter(function(m) { return !(m.source && m.source.messageId === messageId); }));
+  }
+  function rememberThisMessage(messageId) {
+    var log = getChatLog();
+    var msg = log.find(function(m) { return m.id === messageId; });
+    if (!msg || !(msg.body || '').trim()) return;
+    addMemory({ type: 'memory', content: (msg.body || '').trim().slice(0, 500), source: { messageId: messageId }, salience: 0.7 });
+  }
+  function forgetThisMessage(messageId) {
+    invalidateMemoriesByMessageId(messageId);
+  }
+  function reconcileAfterEdit(messageId, newBody) {
+    invalidateMemoriesByMessageId(messageId);
+    var log = getChatLog();
+    var msg = null;
+    for (var i = 0; i < log.length; i++) if (log[i].id === messageId) { msg = log[i]; break; }
+    if (msg && newBody) { var characterId = msg.characterId || null; var extracted = extractMemoriesFromMessage(Object.assign({}, msg, { body: newBody }), characterId, 0.7); extracted.forEach(function(e) { addMemory(e); }); }
+  }
+  function buildDialogueContext(characterId, recentLog, scenario, narrative) {
+    var char = getCharacter(characterId);
+    var profile = char && char.profile ? char.profile : {};
+    var scene = getScene();
+    var lastUserMsg = recentLog.filter(function(m) { return m.role === 'user'; }).pop();
+    var topic = (lastUserMsg && lastUserMsg.body) ? String(lastUserMsg.body).trim().slice(0, 120) : undefined;
+    var relevantMemories = getRelevantMemories({ characterId: characterId, participants: recentLog.map(function(m) { return m.senderName; }).filter(Boolean), topic: topic, limit: 5, scenePhase: scene.phase, location: scene.location });
+    var scenarioText = [scenario.setup, scenario.datetime].filter(Boolean).join(' ');
+    return { profile: profile, speakingStyle: profile.speaking_style || '', personality: profile.personality || '', memories: relevantMemories, scenario: scenarioText, narrative: narrative, recentMessages: recentLog.slice(-10), scenePhase: scene.phase, location: scene.location };
+  }
+  function applySpeechTics(text, characterId) {
+    var char = getCharacter(characterId);
+    var profile = char && char.profile ? char.profile : {};
+    var bias = profile.sentenceLengthBias || 'medium';
+    var formality = profile.formalityScale != null ? profile.formalityScale : 0.5;
+    var t = text;
+    if (bias === 'short' && t.length > 80) t = t.slice(0, 80) + '...';
+    if (bias === 'long' && t.length < 40) t = t + ' They pause, then add more in character.';
+    if (formality > 0.7 && t.indexOf('\'') === -1) t = t.replace(/\b(I'm|you're|that's|it's|don't)\b/gi, function(m) { return m; });
+    return t;
+  }
+  function innerMonologueBias(text, characterId) {
+    var thoughts = getCharacterThoughts(characterId);
+    var fears = thoughts.fears || [];
+    var emotionalState = thoughts.emotionalState || 'neutral';
+    if (fears.length > 0 && emotionalState === 'fear') return '... ' + text;
+    if (emotionalState === 'sadness') return text;
+    return text;
+  }
+  function generateReply(characterId, userMessage, context) {
+    var char = getCharacter(characterId);
+    if (!char || !char.profile) return null;
+    var name = char.name || 'Character';
+    var profile = char.profile;
+    var generalInfo = (profile.general_info || '').trim();
+    var personality = (profile.personality || '').slice(0, 200);
+    var fix = getPendingFix();
+    if (fix && fix.characterId === characterId && fix.description) { setPendingFix(null); return { reply: name + ' (correcting: ' + fix.description + '): [adjusts behavior accordingly] "' + userMessage.slice(0, 50) + '..." — responding in character while avoiding the noted issue.', debugInfo: { memoriesUsed: [], traitsInfluenced: ['pendingFix'], intent: 'correct' } }; }
+    var userLower = (userMessage || '').toLowerCase().trim();
+    var askingNameOrAge = /\b(what'?s your name|your name|who are you|what are you called|how old are you|what age|how old)\b/i.test(userLower) || /^(name|age)\??\s*$/i.test(userLower);
+    if (askingNameOrAge && (name !== 'Character' || generalInfo)) {
+      var askingAge = /\b(how old|what age|how old)\b/i.test(userLower) || /^age\??\s*$/i.test(userLower);
+      var spoken = '';
+      if (askingAge && generalInfo) {
+        var ageMatch = generalInfo.match(/(\d{1,3})\s*(?:year|yr|y\.?o\.?|years?\s*old)/i) || generalInfo.match(/(?:age|turn(?:ed)?)\s*(\d{1,3})/i) || generalInfo.match(/\b(\d{1,3})\b/);
+        var age = ageMatch ? ageMatch[1] : null;
+        spoken = age ? 'I\'m ' + age + '.' : 'I\'m ' + name + '.';
+      } else {
+        spoken = 'I\'m ' + name + '.';
+      }
+      return { reply: applySpeechTics(spoken, characterId), debugInfo: { memoriesUsed: [], traitsInfluenced: ['general_info'], intent: 'statement' } };
+    }
+    var intentResults = detectIntent(userMessage);
+    context.intentResults = intentResults;
+    updateInnerMonologue(characterId, { userMessage: userMessage });
+    var goalResolution = resolveCompetingGoals(characterId, context);
+    var intentVs = intentVsGoals(intentResults[0], characterId);
+    var ruleEffect = applyBehavioralRules(characterId, context);
+    var memoriesUsed = (context.memories || []).slice(0, 5);
+    var replies = ['"I hear you," ' + name + ' says, considering. "' + userMessage.slice(0, 60) + (userMessage.length > 60 ? '...' : '') + '"', name + ' nods. "' + userMessage.slice(0, 40) + '... I understand."', '"Mm." ' + name + ' replies in character, keeping their tone consistent with ' + (personality || 'their personality') + '.'];
+    var idx = Math.min(context.recentMessages.length % 3, replies.length - 1);
+    var base = replies[idx];
+    base = shapeResponseByIntent(base, intentResults);
+    base = emotionInfluencedDialogue(base, characterId);
+    base = innerMonologueBias(base, characterId);
+    base = applySpeechTics(base, characterId);
+    var traitsInfluenced = [];
+    if (ruleEffect) traitsInfluenced.push('behavioral_rules: ' + (ruleEffect.rule || ''));
+    if (intentResults[0]) traitsInfluenced.push('intent: ' + intentResults[0].intent);
+    if (goalResolution.chosen) traitsInfluenced.push('goal: ' + (goalResolution.chosen.text || goalResolution.reason));
+    if (profile.formalityScale != null) traitsInfluenced.push('formalityScale: ' + profile.formalityScale);
+    if (profile.sentenceLengthBias) traitsInfluenced.push('sentenceLengthBias: ' + profile.sentenceLengthBias);
+    var intentLabel = (intentResults[0] && intentResults[0].intent) || 'statement';
+    var debugInfo = { memoriesUsed: memoriesUsed.map(function(m) { return { id: m.id, content: (m.content || '').slice(0, 60) + '...' }; }), traitsInfluenced: traitsInfluenced, intent: intentLabel };
+    return { reply: base, debugInfo: debugInfo };
+  }
+  function runScheduledForTurn(turnIndex) {
+    var narrative = getNarrative();
+    var events = (narrative.scheduledEvents || []).filter(function(e) { return e.turnIndex === turnIndex; });
+    var actions = (narrative.scheduledActions || []).filter(function(a) { return a.turnIndex === turnIndex; });
+    return { events: events, actions: actions };
+  }
+
+  function resolveInternalConflict(characterId) {
+    var cog = getCharacterCognition(characterId);
+    var conflicts = cog.conflicts || [];
+    if (conflicts.length === 0) return null;
+    var goals = cog.goals || [];
+    var topGoal = goals[0];
+    return topGoal ? { resolvedToward: topGoal.id || topGoal.text } : { resolvedToward: 'neutral' };
+  }
+  function decideAction(characterId, context) {
+    var cog = getCharacterCognition(characterId);
+    var goals = (cog.goals || []).slice(0, 3);
+    var motivations = cog.motivations || [];
+    var conflict = resolveInternalConflict(characterId);
+    return { goals: goals, motivations: motivations, conflict: conflict, chosen: goals[0] || null };
+  }
+  function getCharacterThoughts(charId) { var c = getCharacter(charId); return (c && c.thoughts && c.thoughts.current) ? c.thoughts.current : { currentGoals: [], fears: [], emotionalState: 'neutral', wantFromTurn: '' }; }
+  function updateInnerMonologue(charId, turnContext) {
+    var char = getCharacter(charId);
+    if (!char) return;
+    var cog = getCharacterCognition(charId);
+    var em = getCharacterEmotions(charId);
+    var dominant = 'neutral'; var maxV = 0;
+    for (var k in em.state) { if (em.state[k] > maxV) { maxV = em.state[k]; dominant = k; } }
+    var shortTerm = (cog.shortTermGoal && cog.shortTermGoal.text) || (cog.goals && cog.goals[0] && cog.goals[0].text) || '';
+    var longTerm = (cog.longTermGoal && cog.longTermGoal.text) || (cog.goals && cog.goals[1] && cog.goals[1].text) || '';
+    var wantFromTurn = turnContext && turnContext.userMessage ? 'Respond to: ' + (turnContext.userMessage || '').slice(0, 80) : (shortTerm || 'stay in character');
+    var current = { currentGoals: [shortTerm, longTerm].filter(Boolean), fears: cog.fears || [], emotionalState: dominant, wantFromTurn: wantFromTurn };
+    setCharacter(charId, { thoughts: { current: current, updatedAt: Date.now() } });
+    return current;
+  }
+  function resolveCompetingGoals(characterId, context) {
+    var cog = getCharacterCognition(characterId);
+    var shortTerm = cog.shortTermGoal || (cog.goals && cog.goals[0]);
+    var longTerm = cog.longTermGoal || (cog.goals && cog.goals[1]);
+    if (!shortTerm && !longTerm) return { chosen: null, reason: 'no goals' };
+    if (!longTerm) return { chosen: shortTerm, reason: 'short-term only' };
+    if (!shortTerm) return { chosen: longTerm, reason: 'long-term only' };
+    var intentResults = context && context.intentResults;
+    var isQuestion = intentResults && intentResults[0] && intentResults[0].intent === 'question';
+    if (isQuestion) return { chosen: longTerm, reason: 'question favors long-term' };
+    return { chosen: shortTerm, reason: 'immediate turn favors short-term' };
+  }
+
+  var EMOTION_KEYS = ['joy', 'sadness', 'anger', 'fear', 'surprise', 'trust', 'anticipation', 'neutral'];
+  function decayEmotions(charId, turnsSinceUpdate) {
+    var em = getCharacterEmotions(charId);
+    var decay = Math.pow(1 - (em.decayRate || 0.1), Math.min(turnsSinceUpdate, 10));
+    var next = {};
+    for (var k in em.state) { next[k] = (em.state[k] || 0) * (em.carryover || 0.7) * decay; }
+    setCharacterEmotions(charId, { state: next });
+    return next;
+  }
+  function updateEmotionFromMessage(charId, messageBody, isIncoming) {
+    var em = getCharacterEmotions(charId);
+    var state = Object.assign({}, em.state);
+    var body = (messageBody || '').toLowerCase();
+    if (body.indexOf('happy') !== -1 || body.indexOf('love') !== -1) state.joy = (state.joy || 0) + 0.2;
+    if (body.indexOf('sad') !== -1 || body.indexOf('sorry') !== -1) state.sadness = (state.sadness || 0) + 0.2;
+    if (body.indexOf('angry') !== -1 || body.indexOf('hate') !== -1) state.anger = (state.anger || 0) + 0.2;
+    if (body.indexOf('?') !== -1) state.surprise = (state.surprise || 0) + 0.1;
+    state.neutral = 1 - Math.min(1, (state.joy || 0) + (state.sadness || 0) + (state.anger || 0) + (state.surprise || 0));
+    setCharacterEmotions(charId, { state: state });
+  }
+  function emotionInfluencedRecall(memories, characterId) {
+    var em = getCharacterEmotions(characterId);
+    var dominant = 'neutral';
+    var maxV = 0;
+    for (var k in em.state) { if (em.state[k] > maxV) { maxV = em.state[k]; dominant = k; } }
+    return memories.map(function(m) {
+      var tag = m.emotionalTag || 'neutral';
+      var boost = tag === dominant ? 0.3 : 0;
+      return Object.assign({}, m, { emotionBoost: boost });
+    });
+  }
+  function emotionInfluencedDialogue(baseReply, characterId) {
+    var em = getCharacterEmotions(characterId);
+    var state = em.state || {};
+    if ((state.anger || 0) > 0.4) return '[firmly] ' + baseReply;
+    if ((state.sadness || 0) > 0.4) return '[quietly] ' + baseReply;
+    if ((state.joy || 0) > 0.4) return baseReply;
+    return baseReply;
+  }
+
+  function getScenePhase() { return (getScene().phase || 'setup'); }
+  function getSceneLight() { var s = getScene(); return { location: s.location || '', phase: s.phase || 'setup', mood: s.mood || '' }; }
+  function advanceNarrativePhase() {
+    var scene = getScene();
+    var phases = ['setup', 'escalation', 'aftermath'];
+    var i = phases.indexOf(scene.phase || 'setup');
+    if (i < phases.length - 1) setScene({ phase: phases[i + 1] });
+  }
+  function setSceneLocation(loc) {
+    var scene = getScene();
+    var hist = (scene.locationHistory || []).slice();
+    if (scene.location) hist.push({ location: scene.location, turn: state.turnIndex });
+    setScene({ location: loc || '', locationHistory: hist });
+  }
+  function sceneAwareMemoryWeight(memories, scenePhase, location) {
+    var loc = (location || '').toLowerCase();
+    return memories.map(function(m) {
+      var w = (m.narrativeSalience != null ? m.narrativeSalience : 0.5) * (m.importanceDecay != null ? m.importanceDecay : 1);
+      if (m.scenePhase && m.scenePhase === scenePhase) w += 0.2;
+      if (m.location && loc && m.location.toLowerCase().indexOf(loc) !== -1) w += 0.15;
+      return Object.assign({}, m, { sceneWeight: w });
+    });
+  }
+
+  function getCanonFacts() { return (getCanon().facts || []).slice(); }
+  function addCanonFact(fact) { var c = getCanon(); c.facts = c.facts || []; c.facts.push(Object.assign({ id: 'fact-' + Date.now() }, fact)); setCanon(c); }
+  function getCharacterBeliefs(charId) { return (getCanon().beliefs[charId] || []).slice(); }
+  function setCharacterBelief(charId, belief) { var c = getCanon(); c.beliefs[charId] = c.beliefs[charId] || []; c.beliefs[charId].push(belief); setCanon(c); }
+  function markFalseMemory(memoryId, reason) { var c = getCanon(); c.falseMemoryFlags[memoryId] = { reason: reason || 'contradicts canon' }; setCanon(c); }
+  function recordMisunderstandingOrDeception(messageId, type, who) { var c = getCanon(); c.misunderstandingVsDeception[messageId] = { type: type, who: who }; setCanon(c); }
+  function checkWorldConsistency(proposedFact) {
+    var facts = getCanonFacts();
+    for (var i = 0; i < facts.length; i++) {
+      var f = facts[i];
+      if (f.subject === proposedFact.subject && f.predicate === proposedFact.predicate && f.object !== proposedFact.object) return { consistent: false, conflictWith: f };
+    }
+    return { consistent: true };
+  }
+
+  var INTENT_PATTERNS = [
+    { key: 'question', regex: /\?|^(what|how|why|when|who|where|is|are|do|does|can)\s/i, weight: 1 },
+    { key: 'greeting', regex: /^(hi|hello|hey|good morning|good evening)\s*\.*$/i, weight: 1 },
+    { key: 'request', regex: /please|could you|would you|can you|will you/i, weight: 1 },
+    { key: 'complaint', regex: /(don't|do not|never|wrong|bad|terrible)/i, weight: 0.8 },
+    { key: 'affection', regex: /love|like you|care about|miss you/i, weight: 1 }
+  ];
+  function detectIntent(text) {
+    var t = (text || '').trim();
+    var results = [];
+    for (var i = 0; i < INTENT_PATTERNS.length; i++) {
+      var p = INTENT_PATTERNS[i];
+      if (p.regex.test(t)) results.push({ intent: p.key, confidence: 0.7 * p.weight });
+    }
+    if (results.length === 0) results.push({ intent: 'statement', confidence: 0.6 });
+    return results;
+  }
+
+  function understandUserTurn(userMessage) {
+    var t = (userMessage || '').trim();
+    var intentResults = detectIntent(t);
+    var intent = (intentResults[0] && intentResults[0].intent) || 'statement';
+    var topic = t.slice(0, 100);
+    var lower = t.toLowerCase();
+    var tone = 'neutral';
+    if (/\b(flirt|flirty|love|like you|miss you|care about)\b/.test(lower)) tone = 'affectionate';
+    else if (/\b(sad|sorry|hurt|upset|cry)\b/.test(lower)) tone = 'sad';
+    else if (/\b(angry|mad|hate|wrong|terrible|don't|do not)\b/.test(lower)) tone = 'tense';
+    else if (/\b(hey|hi|hello|good morning)\b/.test(lower) && t.length < 30) tone = 'casual';
+    var turnHint = 'This turn: react in character and stay consistent.';
+    if (intent === 'question') turnHint = 'This turn: answer their question briefly in first person, then continue naturally. Do not paste your profile.';
+    else if (intent === 'greeting') turnHint = 'This turn: greet them back in character, briefly.';
+    else if (intent === 'request') turnHint = 'This turn: respond to their request in character.';
+    else if (intent === 'complaint') turnHint = 'This turn: acknowledge or deflect in character; stay consistent.';
+    else if (intent === 'affection') turnHint = 'This turn: respond to their affection in character.';
+    return { intent: intent, intentResults: intentResults, topic: topic, tone: tone, turnHint: turnHint };
+  }
+
+  function intentVsGoals(intentResult, characterId) {
+    var cog = getCharacterCognition(characterId);
+    var goals = (cog.goals || []).map(function(g) { return g.text || g.id; });
+    var intent = intentResult.intent || 'statement';
+    if (intent === 'question' && goals.length) return { competes: false, alignGoal: goals[0] };
+    if (intent === 'complaint') return { competes: true, suggested: 'deflect or acknowledge' };
+    return { competes: false };
+  }
+  function shapeResponseByIntent(baseReply, intentResults) {
+    var intent = intentResults[0] && intentResults[0].intent;
+    if (intent === 'question') return baseReply + ' (answering in character)';
+    if (intent === 'greeting') return baseReply;
+    return baseReply;
+  }
+
+  function applyBehavioralRules(characterId, context) {
+    var char = getCharacter(characterId);
+    var rules = (char.profile && char.profile.behavioral_rules) || [];
+    if (!rules.length) return null;
+    var rule = rules[0];
+    return rule ? { rule: rule, effect: 'modulate tone' } : null;
+  }
+
+  function importanceDecayForMemory(m, now) {
+    var created = m.createdAt || (m.source && m.source.timestamp) || now;
+    var turnsAgo = Math.max(0, Math.floor((now - created) / 60000));
+    var decay = Math.pow(0.95, Math.min(turnsAgo, 50));
+    return decay;
+  }
+  function emotionalAmplification(score, emotionalTag, currentEmotion) {
+    var tag = emotionalTag || 'neutral';
+    var cur = currentEmotion || 'neutral';
+    if (tag === cur) return Math.min(1, score * 1.3);
+    return score;
+  }
+
+  function evaluateCascadingConsequences(messageId, oldBody, newBody) {
+    var consequences = [];
+    var memories = getMemories().filter(function(m) { return m.source && m.source.messageId === messageId; });
+    if (memories.length && newBody !== oldBody) consequences.push({ type: 'memory', message: 'Memories derived from this message may no longer match.' });
+    var canon = getCanon();
+    if (canon.falseMemoryFlags && Object.keys(canon.falseMemoryFlags).length) consequences.push({ type: 'canon', message: 'Some memories are marked as false; editing may affect consistency.' });
+    return consequences;
+  }
+  function showConflictUI(consequences, messageId, oldBody, newBody, onKeep, onRevert) {
+    var listEl = document.getElementById('conflict-list');
+    if (listEl) {
+      listEl.innerHTML = '';
+      consequences.forEach(function(c) {
+        var div = document.createElement('div');
+        div.className = 'conflict-item';
+        div.textContent = c.message || c.type;
+        listEl.appendChild(div);
+      });
+    }
+    setPendingConflict({ messageId: messageId, oldBody: oldBody, newBody: newBody, onKeep: onKeep, onRevert: onRevert });
+    var modal = document.getElementById('conflict-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function resolveConflictKeepEdit() {
+    var c = getPendingConflict();
+    setPendingConflict(null);
+    var modal = document.getElementById('conflict-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+    if (c && c.onKeep) c.onKeep();
+  }
+  function resolveConflictRevert() {
+    var c = getPendingConflict();
+    setPendingConflict(null);
+    var modal = document.getElementById('conflict-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+    if (c && c.onRevert) c.onRevert();
+  }
+
+  function refreshDebugPanel() {
+    var info = getLastDebugInfo();
+    var memEl = document.getElementById('debug-memories');
+    var traitsEl = document.getElementById('debug-traits');
+    var intentEl = document.getElementById('debug-intent');
+    if (memEl) { memEl.innerHTML = ''; if (info && info.memoriesUsed && info.memoriesUsed.length) info.memoriesUsed.forEach(function(m) { var li = document.createElement('li'); li.textContent = (m.content || m.id || '').slice(0, 80); memEl.appendChild(li); }); else { var li = document.createElement('li'); li.textContent = '(none)'; memEl.appendChild(li); } }
+    if (traitsEl) { traitsEl.innerHTML = ''; if (info && info.traitsInfluenced && info.traitsInfluenced.length) info.traitsInfluenced.forEach(function(t) { var li = document.createElement('li'); li.textContent = t; traitsEl.appendChild(li); }); else { var li = document.createElement('li'); li.textContent = '(none)'; traitsEl.appendChild(li); } }
+    if (intentEl) intentEl.textContent = (info && info.intent) ? info.intent : '(none)';
+  }
+
+  function autoGroundOnFirstTurns() {
+    if (getScenarioGroundingDone()) return;
+    var scenario = getScenario();
+    var setup = (scenario.setup || '').trim();
+    if (!setup || getChatLog().length > 0) return;
+    setScenarioGroundingDone(true);
+    var scene = getScene();
+    if (scene.location) addCanonFact({ subject: 'scene', predicate: 'location', object: scene.location });
+  }
+
+  function buildSystemPromptForLLM(characterId, context, omitRecentMessages) {
+    var char = getCharacter(characterId);
+    if (!char) return '';
+    var name = char.name || 'Character';
+    var profile = char.profile || {};
+    var thoughts = getCharacterThoughts(characterId);
+    var scene = getSceneLight();
+    var rel = getRelationship('user', characterId);
+    var statusLine = (char.statusLine || '').trim();
+    var recentCtx = getCharacterRecentContext(characterId);
+    var generalInfo = (profile.general_info || '').trim();
+    var physicalDesc = (profile.physical_description || '').trim();
+    var personality = (profile.personality || '').trim();
+    var sexualExp = (profile.sexual_experience || '').trim();
+    var kinks = (profile.kinks || '').trim();
+    var lines = [
+      'You are ' + name + '. Your name is ' + name + '.',
+      '— Facts about you (when asked, answer in first person briefly; do not paste or list this text) —',
+      generalInfo ? 'General info (name, age, background): ' + generalInfo.slice(0, 400) : '',
+      physicalDesc ? 'Physical description: ' + physicalDesc.slice(0, 350) : '',
+      personality ? 'Personality: ' + personality.slice(0, 400) : '',
+      sexualExp ? 'Sexual experience: ' + sexualExp.slice(0, 350) : '',
+      kinks ? 'Kinks: ' + kinks.slice(0, 350) : '',
+      'Speaking style: ' + (profile.speaking_style || ''),
+      'Current goals: ' + (thoughts.currentGoals || []).join('; '),
+      'Fears: ' + (thoughts.fears || []).join(', '),
+      'Emotional state: ' + (thoughts.emotionalState || 'neutral'),
+      'What you want this turn: ' + (thoughts.wantFromTurn || ''),
+      'Scene: ' + scene.location + ' (' + scene.phase + ')' + (scene.mood ? ', mood: ' + scene.mood : ''),
+      'Relationship with user: strength ' + (rel.strength != null ? rel.strength : 0.5) + ', type: ' + (rel.type || 'neutral'),
+      statusLine ? 'Currently: ' + statusLine : '',
+      (recentCtx.lastExchangeTone && recentCtx.lastExchangeTone !== 'neutral') ? 'Recent conversation tone with user: ' + recentCtx.lastExchangeTone : '',
+      'Respond naturally and in character. Use your profile, the scene, your relationship with the user, and relevant memories to stay consistent.',
+      'CRITICAL — Reply format: Output ONLY the character\'s spoken words. No third person ("Noah says,"), no narrative, no pasting your profile or listing facts. When asked your name, age, or about yourself, answer in first person briefly and naturally (e.g. "I\'m Noah." or "I\'m thirteen."). Never repeat your profile text verbatim.'
+    ].filter(Boolean);
+    var chars = getCharacters();
+    var otherCharIds = Object.keys(chars).filter(function(id) { return id !== characterId; });
+    if (otherCharIds.length) {
+      var relLines = otherCharIds.map(function(otherId) {
+        var r = getRelationship(characterId, otherId);
+        var otherName = chars[otherId].name || otherId;
+        return otherName + ': strength ' + (r.strength != null ? r.strength : 0.5) + ', type ' + (r.type || 'neutral');
+      });
+      lines.push('Relationships with other characters: ' + relLines.join('; '));
+    }
+    lines.push('Scenario: ' + (context.scenario || '').slice(0, 200));
+    if (context.memories && context.memories.length) {
+      lines.push('Relevant memories:');
+      context.memories.slice(0, 5).forEach(function(m) { lines.push('- ' + (m.content || '').slice(0, 100)); });
+    }
+    if (!omitRecentMessages && context.recentMessages && context.recentMessages.length) {
+      lines.push('Recent messages (respond as ' + name + ' only, no meta):');
+      (context.recentMessages || []).slice(-8).forEach(function(m) {
+        var who = m.role === 'user' ? getUserName() : (m.senderName || 'Character');
+        lines.push(who + ': ' + (m.body || '').slice(0, 150));
+      });
+    }
+    var ageMatch = generalInfo ? generalInfo.match(/(\d{1,3})\s*(?:year|yr|y\.?o\.?|years?\s*old)/i) : null;
+    var ageNum = ageMatch ? parseInt(ageMatch[1], 10) : null;
+    var ageWord = ageNum >= 0 && ageNum <= 19 ? ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'][ageNum] : (ageNum != null ? String(ageNum) : null);
+    if (context.turnHint) lines.push(context.turnHint);
+    lines.push('Answer format (copy this style): "What\'s your name?" -> "I\'m ' + name + '." "How old are you?" -> "I\'m ' + (ageWord || ageNum || 'thirteen') + '." Reply with ONLY the spoken line, nothing else.');
+    return lines.join('\n');
+  }
+
+  function cleanFactDumpReply(reply, characterName) {
+    if (!reply || typeof reply !== 'string') return reply;
+    var t = reply.trim();
+    if (!t) return reply;
+    var name = characterName || 'Character';
+    function toFirstPerson(s) {
+      if (!s || !/^\s*\w+\s+is\s+a\s+\d+\s*year\s*old/i.test(s) && !/^\s*\w+\s+is\s+\d+/i.test(s)) return s;
+      var ageM = s.match(/(\d{1,3})\s*(?:year|yr|y\.?o\.?|years?\s*old)/i);
+      if (ageM) return 'I\'m ' + ageM[1] + '.';
+      var nameM = s.match(/^([A-Za-z]+)\s+is\s+/);
+      if (nameM) return 'I\'m ' + nameM[1] + '.';
+      return s;
+    }
+    var quoted = t.match(/(?:^|\s)(?:\w+)\s+says,\s*["']([^"']+)["']/);
+    if (quoted && quoted[1]) {
+      var q = quoted[1].trim();
+      return toFirstPerson(q) || q;
+    }
+    if (/^\s*\w+\s+is\s+a\s+\d+\s*year\s*old/i.test(t) || /\b(He|She)\s+is\s+\d+\s*(ft|feet|inch|tall|lb|pound)/i.test(t)) {
+      var firstPerson = t.match(/\b(I\'m|I am)\s+[^.!?]+[.!?]/);
+      if (firstPerson) return firstPerson[0].trim();
+      var ageM = t.match(/(\d{1,3})\s*(?:year|yr|y\.?o\.?|years?\s*old)/i);
+      if (ageM) return 'I\'m ' + ageM[1] + '.';
+      var nameM = t.match(/^([A-Za-z]+)\s+is\s+/);
+      if (nameM) return 'I\'m ' + nameM[1] + '.';
+    }
+    var dup = t.split(/\n\n+/);
+    if (dup.length >= 2 && dup[0].trim().length > 20 && dup[1].indexOf(dup[0].trim().slice(0, 30)) !== -1) return toFirstPerson(dup[0].trim()) || dup[0].trim();
+    return reply;
+  }
+
+  function callLLM(characterId, userMessage, context) {
+    return new Promise(function(resolve, reject) {
+      if (apiConfig.provider === 'none' || !apiConfig.apiUrl) { resolve(null); return; }
+      var systemPrompt = buildSystemPromptForLLM(characterId, context, true);
+      var recent = (context.recentMessages || []).slice(0, -1).slice(-8);
+      var history = recent.map(function(m) { return { role: m.role === 'user' ? 'user' : 'assistant', content: (m.body || '').slice(0, 250) }; }).filter(function(m) { return m.content.trim(); });
+      var messages = [{ role: 'system', content: systemPrompt }].concat(history).concat([{ role: 'user', content: userMessage }]);
+      var body = JSON.stringify({ model: 'gpt-3.5-turbo', messages: messages, max_tokens: 256 });
+      var headers = { 'Content-Type': 'application/json' };
+      if (apiConfig.apiKey) headers['Authorization'] = 'Bearer ' + apiConfig.apiKey;
+      var delays = [1000, 2000];
+      function attempt(attemptIndex) {
+        return fetch(apiConfig.apiUrl, { method: 'POST', headers: headers, body: body })
+          .then(function(r) {
+            if (r.ok) return r.json();
+            if (r.status >= 500 && attemptIndex < delays.length) {
+              return new Promise(function(go) { setTimeout(go, delays[attemptIndex]); }).then(function() { return attempt(attemptIndex + 1); });
+            }
+            return r.json().then(function(data) { throw new Error(data.error || 'Request failed'); });
+          })
+          .then(function(data) {
+            var text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+            resolve(text ? text.trim() : null);
+          })
+          .catch(function(e) {
+            if (attemptIndex < delays.length && (e.message === 'Failed to fetch' || (e.message && e.message.indexOf('Server error') === 0))) {
+              return new Promise(function(go) { setTimeout(go, delays[attemptIndex]); }).then(function() { return attempt(attemptIndex + 1); });
+            }
+            reject(e);
+          });
+      }
+      attempt(0);
+    });
+  }
+
+  function callLLMStream(characterId, userMessage, context, onChunk) {
+    return new Promise(function(resolve, reject) {
+      if (apiConfig.provider === 'none' || !apiConfig.apiUrl) { resolve(null); return; }
+      var systemPrompt = buildSystemPromptForLLM(characterId, context, true);
+      var recent = (context.recentMessages || []).slice(0, -1).slice(-8);
+      var history = recent.map(function(m) { return { role: m.role === 'user' ? 'user' : 'assistant', content: (m.body || '').slice(0, 250) }; }).filter(function(m) { return m.content.trim(); });
+      var messages = [{ role: 'system', content: systemPrompt }].concat(history).concat([{ role: 'user', content: userMessage }]);
+      var body = JSON.stringify({ model: 'gpt-3.5-turbo', messages: messages, max_tokens: 256, stream: true });
+      var headers = { 'Content-Type': 'application/json' };
+      if (apiConfig.apiKey) headers['Authorization'] = 'Bearer ' + apiConfig.apiKey;
+      var delays = [1000, 2000];
+      function attempt(attemptIndex) {
+        return fetch(apiConfig.apiUrl, { method: 'POST', headers: headers, body: body })
+          .then(function(r) {
+            if (!r.ok) {
+              if (r.status >= 500 && attemptIndex < delays.length)
+                return new Promise(function(go) { setTimeout(go, delays[attemptIndex]); }).then(function() { return attempt(attemptIndex + 1); });
+              return r.text().then(function(t) { throw new Error(t || 'Request failed'); });
+            }
+            return r.body;
+          })
+          .then(function(stream) {
+            if (!stream || !stream.getReader) { resolve(null); return; }
+            var reader = stream.getReader();
+            var decoder = new TextDecoder();
+            var full = '';
+            function read() {
+              reader.read().then(function(_ref) {
+                var done = _ref.done;
+                var value = _ref.value;
+                if (done) { resolve(full); return; }
+                var chunk = decoder.decode(value, { stream: true });
+                var lines = chunk.split('\n').filter(function(l) { return l.startsWith('data: '); });
+                lines.forEach(function(l) {
+                  var json = l.slice(6).trim();
+                  if (json === '[DONE]') return;
+                  try {
+                    var data = JSON.parse(json);
+                    var delta = data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content;
+                    if (delta) { full += delta; if (onChunk) onChunk(delta); }
+                  } catch (_) {}
+                });
+                read();
+              }).catch(function(e) { reject(e); });
+            }
+            read();
+          })
+          .catch(function(e) {
+            if (attemptIndex < delays.length && (e.message === 'Failed to fetch' || (e.message && e.message.indexOf('Server error') === 0))) {
+              return new Promise(function(go) { setTimeout(go, delays[attemptIndex]); }).then(function() { return attempt(attemptIndex + 1); });
+            }
+            reject(e);
+          });
+      }
+      attempt(0);
+    });
+  }
+
+  function runResponseEngine(characterId, userMessage, context, onChunk) {
+    if (apiConfig.provider !== 'none' && apiConfig.apiUrl) {
+      return callLLMStream(characterId, userMessage, context, onChunk).then(function(llmReply) {
+        if (llmReply != null && llmReply !== '') {
+          var cleaned = cleanFactDumpReply(llmReply, getCharacter(characterId).name);
+          var debugInfo = { memoriesUsed: (context.memories || []).slice(0, 5).map(function(m) { return { id: m.id, content: (m.content || '').slice(0, 60) + '...' }; }), traitsInfluenced: ['LLM', 'turnHint'], intent: (context.userIntent || 'statement') };
+          return { reply: cleaned, debugInfo: debugInfo, fromLLM: true };
+        }
+        var result = generateReply(characterId, userMessage, context);
+        return { reply: result && result.reply, debugInfo: result && result.debugInfo, fromLLM: false };
+      });
+    }
+    try {
+      var result = generateReply(characterId, userMessage, context);
+      return Promise.resolve({ reply: result && result.reply, debugInfo: result && result.debugInfo, fromLLM: false });
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+
+  function getRelevantMemoriesBySimilarity(queryEmbedding, options) {
+    var memories = getMemories();
+    var hasAny = memories.some(function(m) { return m.embedding && m.embedding.length; });
+    if (!hasAny || !queryEmbedding || !queryEmbedding.length) return getRelevantMemories(options || {});
+    var limit = (options && options.limit) || 5;
+    var scored = memories.filter(function(m) { return m.embedding && m.embedding.length; }).map(function(m) {
+      var dot = 0; for (var i = 0; i < Math.min(m.embedding.length, queryEmbedding.length); i++) dot += m.embedding[i] * queryEmbedding[i];
+      return { m: m, score: dot };
+    });
+    scored.sort(function(a, b) { return b.score - a.score; });
+    return scored.slice(0, limit).map(function(x) { return x.m; });
+  }
+
+  var starLayerEl = null;
+  var distantStarPositions = [];
+  var THEMES = {
+    solid: [{ name: 'Red', color: '#C84644' }, { name: 'Orange', color: '#D3824A' }, { name: 'Yellow', color: '#E4DF61' }, { name: 'Green', color: '#6DA463' }, { name: 'Light Blue', color: '#629FCB' }, { name: 'Purple', color: '#824A93' }, { name: 'Blue', color: '#4A75A8' }, { name: 'Pink', color: '#DC7EBA' }],
+    special: [{ name: 'Pride', colors: ['#C84644', '#D3824A', '#E4DF61', '#6DA463', '#629FCB', '#824A93', '#4A75A8', '#DC7EBA'] }, { name: 'Transgender', colors: ['#5BCEFA', '#F5A9B8', '#FFFFFF'] }, { name: 'Bisexual', colors: ['#D60270', '#9B4F96', '#0038A8'] }, { name: 'Lesbian', colors: ['#D52D00', '#EF7627', '#FF9A56', '#FFFFFF', '#D162A4', '#B55690', '#A30262'] }, { name: 'Bear', colors: ['#613704', '#D46300', '#FDDC62', '#FDE5B7', '#FFFFFF', '#545454', '#000000'] }, { name: '4th of July', colors: ['#BF0A30', '#FFFFFF', '#002868'] }, { name: 'Christmas', colors: ['#BB2528', '#146B3A', '#F8B229', '#FFFFFF'] }, { name: 'Valentines', colors: ['#FFAFC8', '#FFFFFF', '#FD69B3', '#E40303'] }]
+  };
+  function getStarColorsForTheme(themeKey) {
+    if (!themeKey || themeKey === 'starry') return '#ffffff';
+    var solid = THEMES.solid.filter(function(t) { return t.name.toLowerCase().replace(/\s/g, '') === themeKey.toLowerCase().replace(/\s/g, ''); })[0];
+    if (solid) return solid.color;
+    var special = THEMES.special.filter(function(t) { return t.name.toLowerCase() === themeKey.toLowerCase(); })[0];
+    if (special && special.colors && special.colors.length) return special.colors;
+    return '#ffffff';
+  }
+  function buildDistantStarBoxShadow(positions, themeKey) {
+    var colors = getStarColorsForTheme(themeKey);
+    var single = typeof colors === 'string';
+    var parts = [];
+    for (var i = 0; i < positions.length; i++) {
+      var p = positions[i];
+      var col = single ? colors : colors[Math.floor(Math.random() * colors.length)];
+      parts.push(p.x + 'vw ' + p.y + 'vh 0 0 ' + col);
+    }
+    return parts.join(', ');
+  }
+  function createStarsLayer() {
+    if (starLayerEl) return starLayerEl;
+    if (distantStarPositions.length === 0) {
+      for (var d = 0; d < 250; d++) distantStarPositions.push({ x: Math.random() * 100, y: Math.random() * 100 });
+    }
+    var layer = document.createElement('div');
+    layer.className = 'stars-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    var distantDiv = document.createElement('div');
+    distantDiv.className = 'stars-distant';
+    distantDiv.style.boxShadow = buildDistantStarBoxShadow(distantStarPositions, getTheme().background || 'starry');
+    layer.appendChild(distantDiv);
+    for (var i = 0; i < 140; i++) {
+      var star = document.createElement('div');
+      var r = Math.random();
+      star.className = 'star size-' + (r < 0.5 ? 1 : r < 0.85 ? 2 : 3);
+      star.style.left = Math.random() * 100 + '%';
+      star.style.top = Math.random() * 100 + '%';
+      star.style.animationDelay = Math.random() * 3 + 's';
+      if (Math.random() < 0.35) star.classList.add('dim');
+      if (Math.random() < 0.15) star.classList.add('bright');
+      layer.appendChild(star);
+    }
+    for (var s = 0; s < 3; s++) {
+      var shooting = document.createElement('div');
+      shooting.className = 'shooting-star';
+      shooting.style.width = (50 + Math.random() * 40) + 'px';
+      shooting.style.top = (5 + Math.random() * 85) + '%';
+      shooting.style.animationDelay = (s * 4 + Math.random() * 6) + 's';
+      layer.appendChild(shooting);
+    }
+    document.body.appendChild(layer);
+    starLayerEl = layer;
+    return layer;
+  }
+  function applyThemeToStars(themeKey) {
+    var root = document.documentElement;
+    var stars = starLayerEl ? starLayerEl.querySelectorAll('.star') : [];
+    var distantEl = starLayerEl ? starLayerEl.querySelector('.stars-distant') : null;
+    function clearStarColors() {
+      for (var i = 0; i < stars.length; i++) stars[i].style.removeProperty('background');
+    }
+    if (distantEl && distantStarPositions.length) distantEl.style.boxShadow = buildDistantStarBoxShadow(distantStarPositions, themeKey || 'starry');
+    if (!themeKey || themeKey === 'starry') {
+      root.style.setProperty('--star-color', '#ffffff');
+      clearStarColors();
+      return;
+    }
+    var solid = THEMES.solid.filter(function(t) { return t.name.toLowerCase().replace(/\s/g, '') === themeKey.toLowerCase().replace(/\s/g, ''); })[0];
+    if (solid) {
+      root.style.setProperty('--star-color', solid.color);
+      clearStarColors();
+      return;
+    }
+    var special = THEMES.special.filter(function(t) { return t.name.toLowerCase() === themeKey.toLowerCase(); })[0];
+    if (special && special.colors && special.colors.length) {
+      root.style.setProperty('--star-color', special.colors[0]);
+      var colors = special.colors;
+      for (var j = 0; j < stars.length; j++) stars[j].style.background = colors[Math.floor(Math.random() * colors.length)];
+    } else {
+      clearStarColors();
+    }
+  }
+  function applyThemeToUI(themeKey) {
+    var root = document.documentElement;
+    if (!themeKey || themeKey === 'default') {
+      ['--menu-tab', '--char-tab', '--memory-tab', '--rel-tab', '--style-tab', '--export-tab', '--import-tab', '--reset-tab', '--window-char', '--window-memory', '--window-scenario', '--window-style'].forEach(function(p) { root.style.removeProperty(p); });
+      return;
+    }
+    var solid = THEMES.solid.filter(function(t) { return t.name.toLowerCase().replace(/\s/g, '') === themeKey.toLowerCase().replace(/\s/g, ''); })[0];
+    if (solid) {
+      var hex99 = solid.color + '99';
+      ['--menu-tab', '--char-tab', '--memory-tab', '--rel-tab', '--style-tab', '--export-tab', '--import-tab', '--reset-tab', '--window-char', '--window-memory', '--window-scenario', '--window-style'].forEach(function(p) { root.style.setProperty(p, hex99); });
+      return;
+    }
+    var special = THEMES.special.filter(function(t) { return t.name.toLowerCase() === themeKey.toLowerCase(); })[0];
+    if (special && special.colors && special.colors.length) {
+      var colors = special.colors.map(function(c) { return c + '99'; });
+      var tabs = ['--menu-tab', '--char-tab', '--memory-tab', '--rel-tab', '--style-tab', '--export-tab', '--import-tab', '--reset-tab'];
+      tabs.forEach(function(prop, i) { root.style.setProperty(prop, colors[i % colors.length]); });
+      var wins = ['--window-char', '--window-memory', '--window-scenario', '--window-style'];
+      wins.forEach(function(prop, i) { root.style.setProperty(prop, colors[i % colors.length]); });
+    }
+  }
+  function applyFontColor(hex) {
+    document.documentElement.style.setProperty('--font-color', hex);
+    document.documentElement.style.setProperty('--title-color', hex);
+  }
+  function syncThemeFromState() {
+    var t = getTheme();
+    if (t.background) applyThemeToStars(t.background);
+    if (t.menuWindows) applyThemeToUI(t.menuWindows);
+    if (t.font) applyFontColor(t.font);
+  }
+  function renderChatMessage(msg) {
+    var div = document.createElement('div');
+    div.className = 'message ' + (msg.role === 'user' ? 'user' : '');
+    if (msg.thinking) div.classList.add('thinking');
+    div.dataset.messageId = msg.id;
+    var chars = getCharacters();
+    var char = msg.characterId ? chars[msg.characterId] : null;
+    var quirk = (char && char.bubbleQuirk) ? char.bubbleQuirk : '';
+    var avatar = document.createElement('img');
+    avatar.className = 'message-avatar';
+    avatar.alt = msg.senderName || 'Avatar';
+    avatar.src = (char && char.imageDataUrl) ? char.imageDataUrl : 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgba(255,255,255,0.5)"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
+    var bubble = document.createElement('div');
+    bubble.className = 'message-bubble' + (quirk ? ' bubble-quirk ' + quirk : '');
+    var sender = document.createElement('div');
+    sender.className = 'message-sender';
+    sender.textContent = msg.senderName || 'User';
+    var body = document.createElement('div');
+    body.className = 'message-body';
+    if (msg.thinking) {
+      var typingWrap = document.createElement('div');
+      typingWrap.className = 'typing-dots';
+      typingWrap.innerHTML = '<span></span><span></span><span></span>';
+      body.appendChild(typingWrap);
+    } else body.textContent = msg.body || '';
+    if (msg.meta && msg.meta.action) { var action = document.createElement('div'); action.className = 'message-action'; action.textContent = '[Action: ' + msg.meta.action + ']'; bubble.appendChild(action); }
+    bubble.appendChild(sender);
+    bubble.appendChild(body);
+    if (msg.timestamp && !msg.thinking) { var meta = document.createElement('div'); meta.className = 'message-meta'; meta.textContent = new Date(msg.timestamp).toLocaleTimeString(); bubble.appendChild(meta); }
+    if (!msg.thinking) {
+      var actionsRow = document.createElement('div');
+      actionsRow.className = 'message-actions-row';
+      var editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn message-edit-btn';
+      editBtn.textContent = 'Edit';
+      editBtn.title = 'Edit or delete message (updates memories)';
+      editBtn.addEventListener('click', function(e) { e.stopPropagation(); openMessageEdit(msg.id); });
+      var rememberBtn = document.createElement('button');
+      rememberBtn.type = 'button';
+      rememberBtn.className = 'btn';
+      rememberBtn.textContent = 'Remember this';
+      rememberBtn.title = 'Add this message as a memory';
+      rememberBtn.addEventListener('click', function(e) { e.stopPropagation(); rememberThisMessage(msg.id); });
+      var forgetBtn = document.createElement('button');
+      forgetBtn.type = 'button';
+      forgetBtn.className = 'btn';
+      forgetBtn.textContent = 'Forget this';
+      forgetBtn.title = 'Remove memories tied to this message';
+      forgetBtn.addEventListener('click', function(e) { e.stopPropagation(); forgetThisMessage(msg.id); });
+      var branchBtn = document.createElement('button');
+      branchBtn.type = 'button';
+      branchBtn.className = 'btn';
+      branchBtn.textContent = 'Branch from here';
+      branchBtn.title = 'Start a new conversation branch from this message';
+      branchBtn.addEventListener('click', function(e) { e.stopPropagation(); createBranchFromMessage(msg.id); renderChatLog(); });
+      actionsRow.appendChild(editBtn);
+      actionsRow.appendChild(rememberBtn);
+      actionsRow.appendChild(forgetBtn);
+      actionsRow.appendChild(branchBtn);
+      bubble.appendChild(actionsRow);
+    }
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+    return div;
+  }
+  function openMessageEdit(messageId) {
+    var log = getChatLog();
+    var msg = null;
+    for (var i = 0; i < log.length; i++) if (log[i].id === messageId) { msg = log[i]; break; }
+    if (!msg) return;
+    var bubble = document.querySelector('[data-message-id="' + messageId + '"] .message-bubble');
+    if (!bubble) return;
+    var bodyEl = bubble.querySelector('.message-body');
+    var editBtnEl = bubble.querySelector('.message-edit-btn');
+    if (bubble.dataset.editing === 'true') return;
+    bubble.dataset.editing = 'true';
+    var input = document.createElement('textarea');
+    input.className = 'message-edit-input';
+    input.rows = 2;
+    input.value = bodyEl ? bodyEl.textContent : '';
+    var wrap = document.createElement('div');
+    wrap.className = 'message-edit-wrap';
+    var saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn';
+    saveBtn.textContent = 'Save';
+    var delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'btn';
+    delBtn.textContent = 'Delete';
+    saveBtn.addEventListener('click', function() {
+      var newBody = input.value.trim();
+      var log = getChatLog();
+      var msg = null;
+      for (var i = 0; i < log.length; i++) if (log[i].id === messageId) { msg = log[i]; break; }
+      var oldBody = msg ? msg.body || '' : '';
+      var consequences = evaluateCascadingConsequences(messageId, oldBody, newBody);
+      if (consequences.length > 0) {
+        showConflictUI(consequences, messageId, oldBody, newBody, function onKeep() {
+          updateMessage(messageId, { body: newBody });
+          reconcileAfterEdit(messageId, newBody);
+          bubble.dataset.editing = '';
+          wrap.remove();
+          if (bodyEl) bodyEl.textContent = newBody;
+          bodyEl.style.display = '';
+          editBtnEl.style.display = '';
+        }, function onRevert() {
+          bubble.dataset.editing = '';
+          wrap.remove();
+          if (bodyEl) bodyEl.style.display = ''; bodyEl.textContent = oldBody;
+          if (editBtnEl) editBtnEl.style.display = '';
+        });
+        return;
+      }
+      updateMessage(messageId, { body: newBody });
+      reconcileAfterEdit(messageId, newBody);
+      bubble.dataset.editing = '';
+      wrap.remove();
+      if (bodyEl) bodyEl.textContent = newBody;
+      bodyEl.style.display = '';
+      editBtnEl.style.display = '';
+    });
+    delBtn.addEventListener('click', function() {
+      deleteMessage(messageId);
+      invalidateMemoriesByMessageId(messageId);
+      var el = document.querySelector('[data-message-id="' + messageId + '"]');
+      if (el) el.remove();
+    });
+    wrap.appendChild(input);
+    wrap.appendChild(saveBtn);
+    wrap.appendChild(delBtn);
+    bodyEl.style.display = 'none';
+    editBtnEl.style.display = 'none';
+    bubble.insertBefore(wrap, bodyEl);
+  }
+  function isChatNearBottom() {
+    var container = document.getElementById('chat-messages');
+    if (!container) return true;
+    return container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+  }
+  function scrollChatToBottom() {
+    var container = document.getElementById('chat-messages');
+    if (container) container.scrollTop = container.scrollHeight;
+  }
+  function renderChatLog() {
+    var container = document.getElementById('chat-messages');
+    if (!container) return;
+    var nearBottom = isChatNearBottom();
+    container.innerHTML = '';
+    var log = getChatLog();
+    var start = state.chatLogSliceStart || 0;
+    if (log.length > 150 && start === 0) state.chatLogSliceStart = Math.max(0, log.length - 150);
+    start = state.chatLogSliceStart || 0;
+    var slice = log.slice(start);
+    for (var i = 0; i < slice.length; i++) container.appendChild(renderChatMessage(slice[i]));
+    var loadMoreRow = document.getElementById('load-more-row');
+    if (loadMoreRow) loadMoreRow.style.display = start > 0 ? 'block' : 'none';
+    if (nearBottom) scrollChatToBottom();
+  }
+  function findCharacterIdByName(name) {
+    var chars = getCharacters();
+    var lower = (name || '').toLowerCase().trim();
+    for (var id in chars) if (chars[id].name && chars[id].name.toLowerCase().trim() === lower) return id;
+    return null;
+  }
+  function handleSend() {
+    var input = document.getElementById('chat-input');
+    var raw = (input && input.value) ? input.value.trim() : '';
+    if (!raw) return;
+    var parsed = parseCommands(raw);
+    var body = parsed.remainingText;
+    var asCharacterId = null;
+    var responseRestriction = getResponseRestriction();
+    var narrative = getNarrative();
+    parsed.commands.forEach(function(c) {
+      if (c.command === 'UN') setUserName(c.userName);
+      if (c.command === 'AS') asCharacterId = findCharacterIdByName(c.characterName);
+      if (c.command === 'RH') { var id = findCharacterIdByName(c.characterName); if (id) setResponseRestriction(id); responseRestriction = id; }
+      if (c.command === 'R') { setResponseRestriction(null); responseRestriction = null; }
+      if (c.command === 'Action') {
+        var whenTurn = parseTurnText(c.when);
+        var turnIndex = whenTurn != null ? whenTurn : getTurnIndex() + 1;
+        narrative.scheduledActions = narrative.scheduledActions || [];
+        narrative.scheduledActions.push({ turnIndex: turnIndex, description: c.description, who: c.who });
+        setNarrative({ scheduledActions: narrative.scheduledActions });
+      }
+      if (c.command === 'Fix') setPendingFix({ description: c.description, characterId: findCharacterIdByName(c.who) });
+      if (c.command === 'Event') {
+        var whenTurn = parseTurnText(c.when);
+        var turnIndex = whenTurn != null ? whenTurn : getTurnIndex() + 1;
+        narrative.scheduledEvents = narrative.scheduledEvents || [];
+        narrative.scheduledEvents.push({ turnIndex: turnIndex, description: c.description });
+        setNarrative({ scheduledEvents: narrative.scheduledEvents });
+      }
+    });
+    if (asCharacterId && body) {
+      appendMessage({ role: 'character', characterId: asCharacterId, senderName: (getCharacter(asCharacterId) && getCharacter(asCharacterId).name) || 'Character', body: body });
+      var lastMsg = getChatLog()[getChatLog().length - 1];
+      extractMemoriesFromMessage(lastMsg, asCharacterId, 0.8).forEach(function(e) { addMemory(e); });
+    } else if (body) {
+      if (getChatLog().length === 0) autoGroundOnFirstTurns();
+      appendMessage({ role: 'user', senderName: getUserName(), body: body });
+      var log = getChatLog();
+      var lastMsg = log[log.length - 1];
+      extractMemoriesFromMessage(lastMsg, null, 0.7).forEach(function(e) { addMemory(e); });
+      var turnIndex = getTurnIndex();
+      var chars = getCharacters();
+      var charIds = Object.keys(chars);
+      var responderId = responseRestriction;
+      if (!responderId && charIds.length) responderId = charIds[turnIndex % charIds.length];
+      if (responderId && chars[responderId]) {
+        updateEmotionFromMessage(responderId, body, true);
+        updateInnerMonologue(responderId, { userMessage: body });
+        var understood = understandUserTurn(body);
+        var recentLog = log.slice(-15);
+        var scenario = getScenario();
+        var context = buildDialogueContext(responderId, recentLog, scenario, getNarrative());
+        context.turnHint = understood.turnHint;
+        context.userIntent = understood.intent;
+        context.userTone = understood.tone;
+        context.intentResults = understood.intentResults;
+        var thinkingEntry = appendMessage({ role: 'character', characterId: responderId, senderName: chars[responderId].name, body: '', thinking: true });
+        var generatingEl = document.getElementById('generating-status');
+        if (generatingEl) generatingEl.textContent = 'Waiting for ' + (chars[responderId].name || 'character') + '...';
+        renderChatLog();
+        var thinkingId = thinkingEntry.id;
+        state.pendingRetryContext = { responderId: responderId, body: body, context: context, thinkingId: thinkingId };
+        function doneReply(result, fromLLM) {
+          var reply = result && result.reply;
+          if (generatingEl) generatingEl.textContent = '';
+          if (reply) {
+            updateMessage(thinkingId, { body: reply, thinking: false });
+            extractMemoriesFromMessage(getChatLog().find(function(m) { return m.id === thinkingId; }), responderId, 0.75).forEach(function(e) { addMemory(e); });
+            updateRelationshipFromInteraction('user', responderId, body, reply);
+            updateRecentContextFromExchange(responderId, body, reply);
+            advanceNarrativePhase();
+            if (result.debugInfo) {
+              setLastDebugInfo(result.debugInfo);
+              if (fromLLM && getDebugPanelVisible()) { var sec = document.getElementById('debug-prompt-section'); var pre = document.getElementById('debug-prompt-preview'); if (sec && pre) { sec.style.display = 'block'; pre.textContent = buildSystemPromptForLLM(responderId, context, true); } }
+              (result.debugInfo.memoriesUsed || []).forEach(function(m) { if (m.id) reinforceMemory(m.id); });
+              if (getDebugPanelVisible()) refreshDebugPanel();
+            }
+          } else updateMessage(thinkingId, { body: '(No response)', thinking: false });
+          state.pendingRetryContext = null;
+          renderChatLog();
+        }
+        function failReply(err) {
+          if (generatingEl) generatingEl.textContent = '';
+          state.pendingRetryContext = { responderId: responderId, body: body, context: context, thinkingId: thinkingId };
+          if (apiConfig.provider !== 'none' && apiConfig.apiUrl) updateOfflineIndicator('api-unavailable');
+          var toast = document.getElementById('error-toast');
+          var msg = document.getElementById('error-toast-message');
+          if (toast && msg) { msg.textContent = 'Something went wrong. ' + (err && err.message ? err.message : ''); toast.style.display = 'flex'; }
+        }
+function onChunk(chunk) {
+            var row = document.querySelector('[data-message-id="' + thinkingId + '"]');
+            if (!row) return;
+            var bodyEl = row.querySelector('.message-body');
+            if (!bodyEl) return;
+            var dots = bodyEl.querySelector('.typing-dots');
+            if (dots) { dots.remove(); bodyEl.textContent = ''; }
+            bodyEl.textContent = (bodyEl.textContent || '') + chunk;
+            var m = getChatLog().find(function(x) { return x.id === thinkingId; });
+            if (m) m.body = (m.body || '') + chunk;
+          }
+        runResponseEngine(responderId, body, context, onChunk).then(function(result) {
+          doneReply(result, result.fromLLM);
+        }).catch(function(e) { failReply(e); });
+      }
+    }
+    input.value = '';
+    renderChatLog();
+  }
+  function doRetryReply() {
+    var ctx = state.pendingRetryContext;
+    if (!ctx) return;
+    var toast = document.getElementById('error-toast');
+    if (toast) toast.style.display = 'none';
+    try {
+      var result = generateReply(ctx.responderId, ctx.body, ctx.context);
+      if (result && result.reply) {
+        updateMessage(ctx.thinkingId, { body: result.reply, thinking: false });
+        extractMemoriesFromMessage(getChatLog().find(function(m) { return m.id === ctx.thinkingId; }), ctx.responderId, 0.75).forEach(function(e) { addMemory(e); });
+        updateRelationshipFromInteraction('user', ctx.responderId, ctx.body, result.reply);
+        updateRecentContextFromExchange(ctx.responderId, ctx.body, result.reply);
+        advanceNarrativePhase();
+        if (result.debugInfo) { setLastDebugInfo(result.debugInfo); (result.debugInfo.memoriesUsed || []).forEach(function(m) { if (m.id) reinforceMemory(m.id); }); if (getDebugPanelVisible()) refreshDebugPanel(); }
+      }
+      state.pendingRetryContext = null;
+      renderChatLog();
+    } catch (e) {
+      var msg = document.getElementById('error-toast-message');
+      if (msg) msg.textContent = 'Retry failed: ' + (e.message || '');
+    }
+  }
+  function closePanels() {
+    var panels = document.querySelectorAll('.panel');
+    for (var i = 0; i < panels.length; i++) panels[i].setAttribute('aria-hidden', 'true');
+  }
+  function openWindow(name) {
+    var windows = document.querySelectorAll('.window');
+    for (var i = 0; i < windows.length; i++) windows[i].setAttribute('aria-hidden', windows[i].dataset.window === name ? 'false' : 'true');
+    closePanels();
+    if (name === 'memory') { var ta = document.getElementById('memory-textarea'); if (ta) ta.value = getMemoryLore(); }
+    if (name === 'scenario') { var setup = document.getElementById('scenario-textarea'); var dt = document.getElementById('scenario-datetime'); var loc = document.getElementById('scene-location'); var phase = document.getElementById('scene-phase'); var moodEl = document.getElementById('scene-mood'); var s = getScenario(); var sc = getScene(); if (setup) setup.value = s.setup || ''; if (dt) dt.value = s.datetime || ''; if (loc) loc.value = sc.location || ''; if (phase) phase.value = sc.phase || 'setup'; if (moodEl) moodEl.value = sc.mood || ''; }
+    if (name === 'characters') { syncCharacterDropdown(); var sel = document.getElementById('character-dropdown'); if (sel && sel.value) syncGoalsFearsToUI(sel.value); }
+  }
+  function closeAllWindows() {
+    var windows = document.querySelectorAll('.window');
+    for (var i = 0; i < windows.length; i++) windows[i].setAttribute('aria-hidden', 'true');
+  }
+  function syncCharacterDropdown() {
+    var sel = document.getElementById('character-dropdown');
+    if (!sel) return;
+    var chars = getCharacters();
+    sel.innerHTML = '<option value="">-- Select character --</option>';
+    for (var id in chars) {
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = chars[id].name || id;
+      sel.appendChild(opt);
+    }
+  }
+  function syncGoalsFearsToUI(charId) {
+    var shortEl = document.getElementById('char-short-term-goal');
+    var longEl = document.getElementById('char-long-term-goal');
+    var fearsEl = document.getElementById('char-fears');
+    var statusLineEl = document.getElementById('char-status-line');
+    var relStrengthEl = document.getElementById('char-relationship-strength');
+    var relStrengthLabel = document.getElementById('char-relationship-strength-label');
+    var relTypeEl = document.getElementById('char-relationship-type');
+    if (!charId) {
+      if (shortEl) shortEl.value = ''; if (longEl) longEl.value = ''; if (fearsEl) fearsEl.value = ''; if (statusLineEl) statusLineEl.value = '';
+      if (relStrengthEl) { relStrengthEl.value = 50; if (relStrengthLabel) relStrengthLabel.textContent = '50%'; }
+      if (relTypeEl) relTypeEl.value = 'neutral';
+      syncOtherRelationshipsToUI(null);
+      return;
+    }
+    var cog = getCharacterCognition(charId);
+    var char = getCharacter(charId);
+    if (shortEl) shortEl.value = (cog.shortTermGoal && cog.shortTermGoal.text) || '';
+    if (longEl) longEl.value = (cog.longTermGoal && cog.longTermGoal.text) || '';
+    if (fearsEl) fearsEl.value = (cog.fears || []).join(', ');
+    if (statusLineEl) statusLineEl.value = (char && char.statusLine) || '';
+    var rel = getRelationship('user', charId);
+    var strengthPct = Math.round((rel.strength != null ? rel.strength : 0.5) * 100);
+    if (relStrengthEl) { relStrengthEl.value = strengthPct; if (relStrengthLabel) relStrengthLabel.textContent = strengthPct + '%'; }
+    if (relTypeEl) relTypeEl.value = rel.type || 'neutral';
+    syncOtherRelationshipsToUI(charId);
+  }
+  function syncOtherRelationshipsToUI(charId) {
+    var container = document.getElementById('character-other-relationships');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!charId) return;
+    var chars = getCharacters();
+    var otherIds = Object.keys(chars).filter(function(id) { return id !== charId; });
+    if (otherIds.length === 0) { container.appendChild(document.createTextNode('(No other characters)')); return; }
+    var typeOpts = ['neutral', 'friend', 'rival', 'romantic', 'mentor', 'family', 'acquaintance'];
+    for (var i = 0; i < otherIds.length; i++) {
+      var otherId = otherIds[i];
+      var otherName = chars[otherId].name || otherId;
+      var r = getRelationship(charId, otherId);
+      var row = document.createElement('div');
+      row.style.display = 'flex'; row.style.flexWrap = 'wrap'; row.style.alignItems = 'center'; row.style.gap = '0.35rem'; row.style.marginTop = '0.35rem';
+      row.dataset.otherId = otherId;
+      var label = document.createElement('span');
+      label.style.fontSize = '0.85rem';
+      label.textContent = otherName + ':';
+      var strengthInput = document.createElement('input');
+      strengthInput.type = 'range';
+      strengthInput.min = 0;
+      strengthInput.max = 100;
+      strengthInput.step = 5;
+      strengthInput.value = Math.round((r.strength != null ? r.strength : 0.5) * 100);
+      strengthInput.style.width = '80px';
+      strengthInput.setAttribute('aria-label', 'Strength with ' + otherName);
+      var strengthLabel = document.createElement('span');
+      strengthLabel.style.fontSize = '0.8rem';
+      strengthLabel.textContent = strengthInput.value + '%';
+      strengthInput.addEventListener('input', function() { strengthLabel.textContent = strengthInput.value + '%'; });
+      var typeSelect = document.createElement('select');
+      typeSelect.className = 'char-dropdown';
+      typeSelect.style.minWidth = '100px';
+      typeOpts.forEach(function(opt) {
+        var o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
+        typeSelect.appendChild(o);
+      });
+      typeSelect.value = r.type || 'neutral';
+      row.appendChild(label);
+      row.appendChild(strengthInput);
+      row.appendChild(strengthLabel);
+      row.appendChild(typeSelect);
+      container.appendChild(row);
+    }
+  }
+  function initCharactersWindow() {
+    var dropdown = document.getElementById('character-dropdown');
+    var rawInput = document.getElementById('character-raw-input');
+    var profileArea = document.getElementById('profile-area');
+    var generateBtn = document.getElementById('generate-profile-btn');
+    var editModeBtn = document.getElementById('edit-mode-btn');
+    var saveBtn = document.getElementById('save-character-btn');
+    var imageBtn = document.getElementById('char-image-btn');
+    var imageInput = document.getElementById('char-image-input');
+    if (generateBtn) generateBtn.addEventListener('click', function() {
+      var text = rawInput ? rawInput.value : '';
+      var result = generateCharacterProfile(text);
+      profileArea.textContent = result.formatted;
+      profileArea.dataset.profileJson = JSON.stringify(result.profile);
+    });
+    if (editModeBtn) editModeBtn.addEventListener('click', function() {
+      var toggled = editModeBtn.classList.toggle('toggled');
+      dropdown.disabled = !toggled;
+      if (toggled) { syncCharacterDropdown(); dropdown.value = ''; rawInput.value = ''; profileArea.textContent = ''; profileArea.dataset.profileJson = ''; }
+      else { var id = dropdown.value; if (id) { var char = getCharacter(id); if (char) { rawInput.value = char.profileRaw || ''; profileArea.textContent = char.profileFormatted || ''; profileArea.dataset.profileJson = char.profile ? JSON.stringify(char.profile) : ''; } } }
+    });
+    if (dropdown) dropdown.addEventListener('change', function() {
+      if (dropdown.disabled) return;
+      var id = dropdown.value;
+      if (!id) { rawInput.value = ''; profileArea.textContent = ''; syncGoalsFearsToUI(null); return; }
+      var char = getCharacter(id);
+      if (char) { rawInput.value = char.profileRaw || ''; profileArea.textContent = char.profileFormatted || ''; profileArea.dataset.profileJson = char.profile ? JSON.stringify(char.profile) : ''; syncGoalsFearsToUI(id); }
+    });
+    var relStrengthInput = document.getElementById('char-relationship-strength');
+    var relStrengthLabel = document.getElementById('char-relationship-strength-label');
+    if (relStrengthInput && relStrengthLabel) relStrengthInput.addEventListener('input', function() { relStrengthLabel.textContent = relStrengthInput.value + '%'; });
+    if (saveBtn) saveBtn.addEventListener('click', function() {
+      var id = dropdown ? dropdown.value : '';
+      var profileJson = profileArea ? profileArea.dataset.profileJson : '';
+      var profile = profileJson ? JSON.parse(profileJson) : null;
+      var name = (profile && profile.general_info) ? profile.general_info.split(/[\n,;]/)[0].trim().replace(/●/g, '') : (function() {
+        var raw = rawInput && rawInput.value ? rawInput.value.trim() : '';
+        if (!raw) return 'Unnamed';
+        var cats = parseCategories(raw);
+        var gen = cats.general_information || cats.general_info || '';
+        if (gen) return (gen.split(/[\n,;]/)[0].trim() || 'Unnamed').replace(/●/g, '');
+        var firstLine = raw.split(/\r?\n/)[0].trim().replace(/●/g, '');
+        if (/^\s*[\w\s]+:\s*$/.test(firstLine)) {
+          var rest = raw.slice(raw.indexOf('\n') + 1).trim();
+          return (rest.split(/[\n,;]/)[0].trim() || firstLine.replace(/:$/, '').trim() || 'Unnamed').replace(/●/g, '');
+        }
+        return firstLine || 'Unnamed';
+      })();
+      var shortGoal = document.getElementById('char-short-term-goal');
+      var longGoal = document.getElementById('char-long-term-goal');
+      var fearsEl = document.getElementById('char-fears');
+      var statusLineEl = document.getElementById('char-status-line');
+      var relStrengthEl = document.getElementById('char-relationship-strength');
+      var relTypeEl = document.getElementById('char-relationship-type');
+      var targetId = id || ('char-' + Date.now());
+      var statusLine = statusLineEl && statusLineEl.value ? statusLineEl.value.trim() : '';
+      var relStrength = relStrengthEl ? Math.max(0, Math.min(1, parseFloat(relStrengthEl.value) / 100)) : 0.5;
+      var relType = relTypeEl && relTypeEl.value ? relTypeEl.value : 'neutral';
+      setRelationship('user', targetId, { strength: relStrength, type: relType });
+      var otherRelContainer = document.getElementById('character-other-relationships');
+      if (otherRelContainer) {
+        var rows = otherRelContainer.querySelectorAll('[data-other-id]');
+        for (var r = 0; r < rows.length; r++) {
+          var row = rows[r];
+          var otherId = row.dataset.otherId;
+          var rangeInput = row.querySelector('input[type="range"]');
+          var typeSelect = row.querySelector('select');
+          if (otherId && rangeInput && typeSelect) setRelationship(targetId, otherId, { strength: Math.max(0, Math.min(1, parseFloat(rangeInput.value) / 100)), type: typeSelect.value || 'neutral' });
+        }
+      }
+      if (id) setCharacter(id, { name: name || (getCharacter(id) && getCharacter(id).name) || 'Unnamed', profile: profile, profileRaw: rawInput ? rawInput.value : '', profileFormatted: profileArea ? profileArea.textContent : '', statusLine: statusLine });
+      else setCharacter(targetId, { name: name || 'Unnamed', profile: profile, profileRaw: rawInput ? rawInput.value : '', profileFormatted: profileArea ? profileArea.textContent : '', statusLine: statusLine });
+      var cog = getCharacterCognition(targetId);
+      setCharacterCognition(targetId, {
+        shortTermGoal: shortGoal && shortGoal.value.trim() ? { text: shortGoal.value.trim() } : null,
+        longTermGoal: longGoal && longGoal.value.trim() ? { text: longGoal.value.trim() } : null,
+        fears: fearsEl && fearsEl.value.trim() ? fearsEl.value.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : []
+      });
+      syncCharacterDropdown();
+      closeAllWindows();
+    });
+    if (imageBtn) imageBtn.addEventListener('click', function() { if (imageInput) imageInput.click(); });
+    if (imageInput) imageInput.addEventListener('change', function(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var id = dropdown ? dropdown.value : null;
+      var reader = new FileReader();
+      reader.onload = function() { if (id) setCharacter(id, { imageDataUrl: reader.result }); };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+    var win = document.getElementById('characters-window');
+    if (win) { var closeBtn = win.querySelector('.window-close'); if (closeBtn) closeBtn.addEventListener('click', closeAllWindows); }
+    var profileInfoBtn = document.getElementById('character-profile-info-btn');
+    var profileInfoModal = document.getElementById('character-profile-info-modal');
+    var profileInfoCloseBtn = document.getElementById('character-profile-info-close-btn');
+    if (profileInfoBtn && profileInfoModal) profileInfoBtn.addEventListener('click', function() { profileInfoModal.setAttribute('aria-hidden', 'false'); });
+    if (profileInfoCloseBtn && profileInfoModal) profileInfoCloseBtn.addEventListener('click', function() { profileInfoModal.setAttribute('aria-hidden', 'true'); });
+    if (profileInfoModal) profileInfoModal.addEventListener('click', function(e) { if (e.target === profileInfoModal) profileInfoModal.setAttribute('aria-hidden', 'true'); });
+  }
+  function initMemoryWindow() {
+    var textarea = document.getElementById('memory-textarea');
+    var saveBtn = document.getElementById('save-memory-btn');
+    var addContent = document.getElementById('add-memory-content');
+    var addTag = document.getElementById('add-memory-tag');
+    var addBtn = document.getElementById('add-memory-btn');
+    if (saveBtn) saveBtn.addEventListener('click', function() { setMemoryLore(textarea ? textarea.value : ''); closeAllWindows(); });
+    if (addBtn && addContent) addBtn.addEventListener('click', function() {
+      var content = addContent.value.trim();
+      if (!content) return;
+      var tag = addTag && addTag.value ? addTag.value : null;
+      addMemory({ content: content, memoryTag: tag });
+      addContent.value = '';
+      if (addTag) addTag.value = '';
+    });
+    var win = document.getElementById('memory-window');
+    if (win) { var closeBtn = win.querySelector('.window-close'); if (closeBtn) closeBtn.addEventListener('click', closeAllWindows); }
+  }
+  var API_CONFIG_KEY = 'character-chat-api';
+  function loadApiConfigFromStorage() {
+    try {
+      var raw = localStorage.getItem(API_CONFIG_KEY);
+      if (raw) { var o = JSON.parse(raw); apiConfig.provider = o.provider || 'none'; apiConfig.apiUrl = o.apiUrl || ''; apiConfig.apiKey = o.apiKey || ''; }
+    } catch (e) {}
+  }
+  function saveApiConfigToStorage() {
+    try { localStorage.setItem(API_CONFIG_KEY, JSON.stringify({ provider: apiConfig.provider, apiUrl: apiConfig.apiUrl, apiKey: apiConfig.apiKey })); } catch (e) {}
+  }
+  function initApiSettingsWindow() {
+    var btn = document.getElementById('api-settings-btn');
+    var win = document.getElementById('api-settings-window');
+    var provider = document.getElementById('api-provider');
+    var apiUrl = document.getElementById('api-url');
+    var apiKey = document.getElementById('api-key');
+    var saveBtn = document.getElementById('api-save-btn');
+    if (btn && win) btn.addEventListener('click', function() {
+      closePanels();
+      loadApiConfigFromStorage();
+      if (provider) provider.value = apiConfig.provider;
+      if (apiUrl) apiUrl.value = apiConfig.apiUrl;
+      if (apiKey) apiKey.value = apiConfig.apiKey;
+      win.setAttribute('aria-hidden', 'false');
+    });
+    if (saveBtn) saveBtn.addEventListener('click', function() {
+      apiConfig.provider = provider ? provider.value : 'none';
+      apiConfig.apiUrl = (apiUrl && apiUrl.value) ? apiUrl.value.trim() : '';
+      apiConfig.apiKey = (apiKey && apiKey.value) ? apiKey.value : '';
+      saveApiConfigToStorage();
+      updateOfflineIndicator(apiConfig.provider === 'none' || !apiConfig.apiUrl ? 'offline' : 'api');
+      closeAllWindows();
+    });
+    if (win) { var closeBtn = win.querySelector('.window-close'); if (closeBtn) closeBtn.addEventListener('click', closeAllWindows); }
+  }
+  function initScenarioWindow() {
+    var setup = document.getElementById('scenario-textarea');
+    var datetime = document.getElementById('scenario-datetime');
+    var sceneLocation = document.getElementById('scene-location');
+    var scenePhase = document.getElementById('scene-phase');
+    var saveBtn = document.getElementById('save-scenario-btn');
+    var sceneToCanonBtn = document.getElementById('scene-to-canon-btn');
+    if (sceneToCanonBtn) sceneToCanonBtn.addEventListener('click', function() {
+      var sc = getScene();
+      if (sc.location) { addCanonFact({ subject: 'scene', predicate: 'location', object: sc.location }); sceneToCanonBtn.textContent = 'Added to canon'; setTimeout(function() { sceneToCanonBtn.textContent = 'Add scene to canon'; }, 1500); }
+    });
+    var sceneMood = document.getElementById('scene-mood');
+    if (saveBtn) saveBtn.addEventListener('click', function() {
+      setScenario(setup ? setup.value : '', datetime ? datetime.value : '');
+      if (sceneLocation) setSceneLocation(sceneLocation.value);
+      if (scenePhase) setScene({ phase: scenePhase.value });
+      if (sceneMood) setScene({ mood: sceneMood.value.trim() });
+      closeAllWindows();
+    });
+    var win = document.getElementById('scenario-window');
+    if (win) { var closeBtn = win.querySelector('.window-close'); if (closeBtn) closeBtn.addEventListener('click', closeAllWindows); }
+  }
+  function initStyleWindow() {
+    var listEl = document.getElementById('style-themes-list');
+    if (!listEl) return;
+    function addThemeRow(label, options, isSolid) {
+      var row = document.createElement('div');
+      row.className = 'theme-row';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'theme-name';
+      nameSpan.textContent = label;
+      row.appendChild(nameSpan);
+      if (isSolid && options.font) {
+        var fontOpt = document.createElement('div');
+        fontOpt.className = 'theme-option';
+        fontOpt.innerHTML = 'Font: <input type="radio" name="font" value="' + options.color + '">';
+        fontOpt.querySelector('input').addEventListener('change', function(e) { setTheme({ font: e.target.value }); applyFontColor(e.target.value); });
+        row.appendChild(fontOpt);
+      }
+      if (options.background) {
+        var bg = document.createElement('div');
+        bg.className = 'theme-option';
+        bg.innerHTML = 'BG <input type="radio" name="bg" value="' + (options.key || options.color || (options.colors && options.colors[0])) + '">';
+        bg.querySelector('input').addEventListener('change', function(e) { setTheme({ background: e.target.value }); applyThemeToStars(e.target.value); });
+        row.appendChild(bg);
+      }
+      if (options.menuWindows) {
+        var mw = document.createElement('div');
+        mw.className = 'theme-option';
+        mw.innerHTML = 'Menu/Win <input type="radio" name="mw" value="' + (options.key || options.color || (options.colors && options.colors[0])) + '">';
+        mw.querySelector('input').addEventListener('change', function(e) { setTheme({ menuWindows: e.target.value }); applyThemeToUI(e.target.value); });
+        row.appendChild(mw);
+      }
+      listEl.appendChild(row);
+    }
+    listEl.innerHTML = '';
+    THEMES.solid.forEach(function(t) { addThemeRow(t.name, { color: t.color, key: t.name, background: true, menuWindows: true, font: true }, true); });
+    THEMES.special.forEach(function(t) { addThemeRow(t.name, { key: t.name, colors: t.colors, background: true, menuWindows: true }, false); });
+    var win = document.getElementById('style-window');
+    if (win) { var closeBtn = win.querySelector('.window-close'); if (closeBtn) closeBtn.addEventListener('click', closeAllWindows); }
+  }
+  function initResetModal() {
+    var modal = document.getElementById('reset-confirm');
+    var cancelBtn = document.getElementById('reset-cancel-btn');
+    var confirmBtn = document.getElementById('reset-confirm-btn');
+    if (cancelBtn) cancelBtn.addEventListener('click', function() { if (modal) modal.setAttribute('aria-hidden', 'true'); });
+    if (confirmBtn) confirmBtn.addEventListener('click', function() {
+      resetAll();
+      if (modal) modal.setAttribute('aria-hidden', 'true');
+      renderChatLog();
+      syncCharacterDropdown();
+      var memTa = document.getElementById('memory-textarea'); if (memTa) memTa.value = '';
+      var scenTa = document.getElementById('scenario-textarea'); if (scenTa) scenTa.value = '';
+      var scenDt = document.getElementById('scenario-datetime'); if (scenDt) scenDt.value = '';
+      var sceneLoc = document.getElementById('scene-location'); if (sceneLoc) sceneLoc.value = '';
+      var scenePhase = document.getElementById('scene-phase'); if (scenePhase) scenePhase.value = 'setup';
+      var sceneMood = document.getElementById('scene-mood'); if (sceneMood) sceneMood.value = '';
+    });
+  }
+  function initConflictModal() {
+    var keepBtn = document.getElementById('conflict-keep-edit-btn');
+    var revertBtn = document.getElementById('conflict-revert-btn');
+    if (keepBtn) keepBtn.addEventListener('click', resolveConflictKeepEdit);
+    if (revertBtn) revertBtn.addEventListener('click', resolveConflictRevert);
+  }
+  function initRestoreModal() {
+    var yesBtn = document.getElementById('restore-yes-btn');
+    var noBtn = document.getElementById('restore-no-btn');
+    if (yesBtn) yesBtn.addEventListener('click', restoreSession);
+    if (noBtn) noBtn.addEventListener('click', startFresh);
+  }
+  function initExportOptionsModal() {
+    var cancelBtn = document.getElementById('export-cancel-btn');
+    var confirmBtn = document.getElementById('export-confirm-btn');
+    var scriptBtn = document.getElementById('export-script-btn');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeExportOptionsModal);
+    if (confirmBtn) confirmBtn.addEventListener('click', function() {
+      var incl = document.getElementById('export-include-chat');
+      exportData(incl ? incl.checked : true);
+      closeExportOptionsModal();
+    });
+    if (scriptBtn) scriptBtn.addEventListener('click', exportScript);
+  }
+  function initErrorToast() {
+    var retryBtn = document.getElementById('error-toast-retry');
+    if (retryBtn) retryBtn.addEventListener('click', function() { doRetryReply(); var t = document.getElementById('error-toast'); if (t) t.style.display = 'none'; });
+  }
+  function initLoadMore() {
+    var btn = document.getElementById('load-more-btn');
+    if (btn) btn.addEventListener('click', function() {
+      state.chatLogSliceStart = Math.max(0, (state.chatLogSliceStart || 0) - 50);
+      renderChatLog();
+    });
+  }
+  function exportData(includeChatLog) {
+    if (includeChatLog === undefined) includeChatLog = true;
+    var s = getState();
+    var data = { version: EXPORT_VERSION, schemaVersion: SCHEMA_VERSION, userName: getUserName(), memoryLore: getMemoryLore(), memories: getMemories(), scenario: getScenario(), narrative: getNarrative(), theme: getTheme(), characterCognition: s.characterCognition, characterEmotions: s.characterEmotions, scene: s.scene, canon: s.canon, scenarioGroundingDone: s.scenarioGroundingDone, sessionTitle: getSessionTitle(), relationships: s.relationships || {}, currentBranchId: getCurrentBranchId(), branches: getBranches(), characterRecentContext: s.characterRecentContext || {} };
+    if (includeChatLog) { data.chatLog = getChatLog(); data.nextMessageId = s.nextMessageId; } else { data.chatLog = []; data.nextMessageId = 0; }
+    data.characters = getCharacters();
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'character-chat-export-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    closeAllWindows();
+  }
+  function exportScript() {
+    var log = getChatLog();
+    var chars = getCharacters();
+    var scene = getScene();
+    var lines = [];
+    if (getSessionTitle()) lines.push('# ' + getSessionTitle());
+    if (scene.location || scene.mood) lines.push('# Scene: ' + [scene.location, scene.mood].filter(Boolean).join(' — ') + '\n');
+    log.forEach(function(m) {
+      if (m.thinking) return;
+      var name = m.role === 'user' ? getUserName() : (m.senderName || (m.characterId && chars[m.characterId] && chars[m.characterId].name) || 'Character');
+      lines.push('[' + name + ']: ' + (m.body || '').replace(/\n/g, ' '));
+    });
+    var blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'character-chat-script-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    closeExportOptionsModal();
+  }
+  function openExportOptionsModal() {
+    var modal = document.getElementById('export-options-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeExportOptionsModal() {
+    var modal = document.getElementById('export-options-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+  }
+  function saveStateToLocalStorage() {
+    try {
+      var s = getState();
+      commitCurrentBranchToLog();
+      var data = { version: EXPORT_VERSION, userName: getUserName(), characters: getCharacters(), chatLog: getChatLog(), memoryLore: getMemoryLore(), memories: getMemories(), scenario: getScenario(), narrative: getNarrative(), theme: getTheme(), nextMessageId: s.nextMessageId, characterCognition: s.characterCognition, characterEmotions: s.characterEmotions, scene: s.scene, canon: s.canon, scenarioGroundingDone: s.scenarioGroundingDone, sessionTitle: getSessionTitle(), relationships: s.relationships || {}, currentBranchId: getCurrentBranchId(), branches: getBranches(), characterRecentContext: s.characterRecentContext || {} };
+      localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(data));
+    } catch (e) { console.warn('Auto-save failed', e); }
+  }
+  function loadStateFromLocalStorage() {
+    try {
+      var raw = localStorage.getItem(AUTO_SAVE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+  function showRestoreSessionModal() {
+    var modal = document.getElementById('restore-session-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function hideRestoreSessionModal() {
+    var modal = document.getElementById('restore-session-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+  }
+  function restoreSession() {
+    var data = loadStateFromLocalStorage();
+    if (data) { importData(data); renderChatLog(); syncCharacterDropdown(); syncThemeFromState(); var st = document.getElementById('session-title-input'); if (st) st.value = getSessionTitle(); }
+    hideRestoreSessionModal();
+  }
+  function startFresh() {
+    try { localStorage.removeItem(AUTO_SAVE_KEY); } catch (e) {}
+    hideRestoreSessionModal();
+  }
+  function loadImportedFile(file) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      try {
+        var data = JSON.parse(reader.result);
+        importData(data);
+        renderChatLog();
+        syncCharacterDropdown();
+        var memTa = document.getElementById('memory-textarea'); if (memTa) memTa.value = getMemoryLore();
+        var scenTa = document.getElementById('scenario-textarea'); var scenDt = document.getElementById('scenario-datetime');
+        if (scenTa) scenTa.value = getScenario().setup;
+        if (scenDt) scenDt.value = getScenario().datetime || '';
+        var st = document.getElementById('session-title-input'); if (st) st.value = getSessionTitle();
+        syncThemeFromState();
+      } catch (e) { console.error('Import failed', e); }
+    };
+    reader.readAsText(file);
+    document.getElementById('import-file-input').value = '';
+    closeAllWindows();
+  }
+  function updateOfflineIndicator(mode) {
+    var el = document.getElementById('offline-indicator');
+    if (!el) return;
+    if (mode === 'offline') el.textContent = 'Using built-in replies';
+    else if (mode === 'api-unavailable') el.textContent = 'API unavailable – using built-in replies';
+    else el.textContent = '';
+  }
+  function refreshBranchList() {
+    var container = document.getElementById('branch-list');
+    if (!container) return;
+    container.innerHTML = '';
+    var branches = getBranches();
+    var current = getCurrentBranchId();
+    Object.keys(branches).forEach(function(id) {
+      var b = branches[id];
+      var label = id === 'main' ? 'Main' : ('Branch at msg ' + (b.parentMessageId || id));
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn' + (id === current ? ' branch-badge' : '');
+      btn.textContent = label + (id === current ? ' (current)' : '');
+      btn.style.marginRight = '0.25rem';
+      btn.style.marginTop = '0.2rem';
+      btn.addEventListener('click', function() {
+        if (id === current) return;
+        switchBranch(id);
+        renderChatLog();
+        refreshBranchList();
+      });
+      container.appendChild(btn);
+    });
+  }
+  function bindUI() {
+    createStarsLayer();
+    syncThemeFromState();
+    var sessionTitleInput = document.getElementById('session-title-input');
+    if (sessionTitleInput) {
+      sessionTitleInput.value = getSessionTitle();
+      sessionTitleInput.addEventListener('input', function() { setSessionTitle(sessionTitleInput.value); });
+      sessionTitleInput.addEventListener('blur', function() { setSessionTitle(sessionTitleInput.value); });
+    }
+    updateOfflineIndicator(apiConfig.provider === 'none' || !apiConfig.apiUrl ? 'offline' : 'api');
+    var debugToggle = document.getElementById('debug-panel-toggle');
+    var debugPanelEl = document.getElementById('debug-panel');
+    if (debugToggle && debugPanelEl) {
+      debugToggle.checked = getDebugPanelVisible();
+      debugToggle.addEventListener('change', function() {
+        setDebugPanelVisible(debugToggle.checked);
+        debugPanelEl.classList.toggle('visible', debugToggle.checked);
+        debugPanelEl.setAttribute('aria-hidden', debugToggle.checked ? 'false' : 'true');
+        if (debugToggle.checked) refreshDebugPanel();
+      });
+      if (getDebugPanelVisible()) { debugPanelEl.classList.add('visible'); debugPanelEl.setAttribute('aria-hidden', 'false'); refreshDebugPanel(); }
+    }
+    var sendBtn = document.getElementById('send-btn');
+    if (sendBtn) sendBtn.addEventListener('click', handleSend);
+    var chatInput = document.getElementById('chat-input');
+    if (chatInput) chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      (function(tab) {
+        tab.addEventListener('click', function() {
+          var name = tab.dataset.tab;
+          if (name === 'menu') { var panel = document.getElementById('menu-panel'); var hidden = !panel || panel.getAttribute('aria-hidden') !== 'false'; if (panel) { panel.setAttribute('aria-hidden', hidden ? 'false' : 'true'); if (hidden) refreshBranchList(); } return; }
+          if (name === 'characters') openWindow('characters');
+          if (name === 'memory') openWindow('memory');
+          if (name === 'scenario') openWindow('scenario');
+          if (name === 'style') openWindow('style');
+          if (name === 'export') openExportOptionsModal();
+          if (name === 'import') document.getElementById('import-file-input').click();
+          if (name === 'reset') { var m = document.getElementById('reset-confirm'); if (m) m.setAttribute('aria-hidden', 'false'); }
+        });
+      })(tabs[i]);
+    }
+    var closeBtns = document.querySelectorAll('.window-close, .panel-close');
+    for (var j = 0; j < closeBtns.length; j++) {
+      (function(btn) {
+        btn.addEventListener('click', function() {
+          if (btn.closest('.window')) closeAllWindows();
+          if (btn.closest('.panel')) closePanels();
+        });
+      })(closeBtns[j]);
+    }
+    var importInput = document.getElementById('import-file-input');
+    if (importInput) importInput.addEventListener('change', function(e) { var file = e.target.files && e.target.files[0]; if (file) loadImportedFile(file); });
+    initCharactersWindow();
+    initMemoryWindow();
+    initScenarioWindow();
+    initStyleWindow();
+    initResetModal();
+    initConflictModal();
+    initApiSettingsWindow();
+    initRestoreModal();
+    initExportOptionsModal();
+    initErrorToast();
+    initLoadMore();
+    setInterval(saveStateToLocalStorage, AUTO_SAVE_INTERVAL_MS);
+    window.addEventListener('beforeunload', function(e) {
+      if (getChatLog().length > 0 || Object.keys(getCharacters()).length > 0) { e.preventDefault(); }
+    });
+    loadApiConfigFromStorage();
+    var saved = loadStateFromLocalStorage();
+    if (saved && saved.chatLog && saved.chatLog.length > 0 || saved && saved.characters && Object.keys(saved.characters).length > 0) showRestoreSessionModal();
+  }
+
+  bindUI();
+  renderChatLog();
+  syncCharacterDropdown();
+})();
+  </script>
+</body>
+</html>
